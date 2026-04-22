@@ -265,6 +265,37 @@ export async function deactivateSubscription(userId: number) {
   }).where(eq(users.id, userId));
 }
 
+// ── Admin: Gerenciar Créditos ──
+
+export async function resetUserConsultas(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({
+    consultasUsedThisMonth: 0,
+    consultasResetAt: new Date(),
+  }).where(eq(users.id, userId));
+}
+
+export async function addBonusConsultas(userId: number, bonus: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Diminui o contador (consultas usadas), efetivamente dando créditos extras
+  await db.update(users).set({
+    consultasUsedThisMonth: sql`GREATEST(0, ${users.consultasUsedThisMonth} - ${bonus})`,
+  }).where(eq(users.id, userId));
+}
+
+export async function setUserPlan(userId: number, planSlug: string, consultasLimit: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({
+    planId: planSlug,
+    subscriptionStatus: "active",
+    consultasUsedThisMonth: 0,
+    consultasResetAt: new Date(),
+  }).where(eq(users.id, userId));
+}
+
 // ── Admin: Delete User ──
 
 export async function deleteUser(userId: number) {

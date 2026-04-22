@@ -23,6 +23,9 @@ import {
   deleteUser,
   deleteSimulatedAnalyses,
   updateUserProfile,
+  resetUserConsultas,
+  addBonusConsultas,
+  setUserPlan,
 } from "./db";
 import {
   runCreditAnalysis,
@@ -695,6 +698,43 @@ export const appRouter = router({
       }
       return { configured, working };
     }),
+
+    // ── Zerar consultas do usuário ──
+    resetUserConsultas: protectedProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a administradores." });
+        }
+        await resetUserConsultas(input.userId);
+        return { success: true, message: "Consultas zeradas com sucesso." };
+      }),
+
+    // ── Dar consultas bônus ──
+    addBonusConsultas: protectedProcedure
+      .input(z.object({ userId: z.number(), bonus: z.number().int().min(1).max(1000) }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a administradores." });
+        }
+        await addBonusConsultas(input.userId, input.bonus);
+        return { success: true, message: `${input.bonus} consulta(s) adicionada(s) com sucesso.` };
+      }),
+
+    // ── Mudar plano do usuário ──
+    setUserPlan: protectedProcedure
+      .input(z.object({ userId: z.number(), planSlug: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a administradores." });
+        }
+        const plan = await getPlanBySlug(input.planSlug);
+        if (!plan) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Plano não encontrado." });
+        }
+        await setUserPlan(input.userId, input.planSlug, plan.consultasLimit);
+        return { success: true, message: `Plano alterado para ${plan.name} com sucesso.` };
+      }),
   }),
 
   // ── Credit Analysis ──

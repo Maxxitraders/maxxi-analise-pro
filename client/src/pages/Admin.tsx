@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Users, UserCheck, Crown, Package, ArrowRight, Trash2, UserX, Mail, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Loader2, Users, UserCheck, Crown, Package, ArrowRight, Trash2, UserX, Mail, CheckCircle, XCircle, AlertTriangle, Gift, RotateCcw, CreditCard as CreditCardIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
@@ -31,6 +32,9 @@ export default function Admin() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string; email: string } | null>(null);
+  const [creditTarget, setCreditTarget] = useState<{ id: number; name: string; email: string; planId: string; consultasUsed: number; consultasLimit: number } | null>(null);
+  const [bonusAmount, setBonusAmount] = useState("10");
+  const [selectedPlan, setSelectedPlan] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("todos");
   const [search, setSearch] = useState("");
 
@@ -50,6 +54,41 @@ export default function Admin() {
 
   const { data: emailStatus } = trpc.admin.emailStatus.useQuery(undefined, {
     enabled: user?.role === "admin",
+  });
+
+  const { data: allPlans } = trpc.admin.listPlans.useQuery(undefined, {
+    enabled: user?.role === "admin",
+  });
+
+  const resetMutation = trpc.admin.resetUserConsultas.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.message);
+      setCreditTarget(null);
+      utils.admin.allUsers.invalidate();
+      utils.admin.subscribers.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const bonusMutation = trpc.admin.addBonusConsultas.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.message);
+      setCreditTarget(null);
+      utils.admin.allUsers.invalidate();
+      utils.admin.subscribers.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const setPlanMutation = trpc.admin.setUserPlan.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.message);
+      setCreditTarget(null);
+      utils.admin.allUsers.invalidate();
+      utils.admin.subscribers.invalidate();
+      utils.admin.subscriptionStats.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
   });
 
   const deleteMutation = trpc.admin.deleteUser.useMutation({
@@ -271,20 +310,43 @@ export default function Admin() {
                         {u.createdAt ? new Date(u.createdAt).toLocaleDateString("pt-BR") : "—"}
                       </TableCell>
                       <TableCell className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                          onClick={() =>
-                            setDeleteTarget({
-                              id: u.id,
-                              name: u.name || "Sem nome",
-                              email: u.email || "Sem email",
-                            })
-                          }
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                            title="Gerenciar créditos"
+                            onClick={() => {
+                              setSelectedPlan(u.planId || "none");
+                              setBonusAmount("10");
+                              setCreditTarget({
+                                id: u.id,
+                                name: u.name || "Sem nome",
+                                email: u.email || "Sem email",
+                                planId: u.planId || "none",
+                                consultasUsed: u.consultasUsed || 0,
+                                consultasLimit: u.consultasLimit || 0,
+                              });
+                            }}
+                          >
+                            <Gift className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            title="Excluir usuário"
+                            onClick={() =>
+                              setDeleteTarget({
+                                id: u.id,
+                                name: u.name || "Sem nome",
+                                email: u.email || "Sem email",
+                              })
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -327,6 +389,124 @@ export default function Admin() {
                 <><Trash2 className="mr-2 h-4 w-4" />Excluir Usuário</>
               )}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Gerenciamento de Créditos */}
+      <Dialog open={!!creditTarget} onOpenChange={(open) => !open && setCreditTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-primary" />
+              Gerenciar Créditos
+            </DialogTitle>
+            <DialogDescription>
+              Gerencie as consultas e plano deste usuário.
+            </DialogDescription>
+          </DialogHeader>
+
+          {creditTarget && (
+            <div className="space-y-5">
+              {/* Info do usuário */}
+              <div className="rounded-lg border p-3 bg-muted/50">
+                <p className="font-medium">{creditTarget.name}</p>
+                <p className="text-sm text-muted-foreground">{creditTarget.email}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Consultas usadas: <strong>{creditTarget.consultasUsed}</strong>
+                  {creditTarget.consultasLimit > 0 ? ` / ${creditTarget.consultasLimit}` : creditTarget.consultasLimit === -1 ? " / ∞" : ""}
+                </p>
+              </div>
+
+              {/* Zerar consultas */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <RotateCcw className="h-4 w-4 text-blue-500" />
+                  Zerar Consultas do Mês
+                </p>
+                <p className="text-xs text-muted-foreground">Reseta o contador para 0, como se fosse início do mês.</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-blue-200 text-blue-700 hover:bg-blue-50"
+                  onClick={() => resetMutation.mutate({ userId: creditTarget.id })}
+                  disabled={resetMutation.isPending || bonusMutation.isPending || setPlanMutation.isPending}
+                >
+                  {resetMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+                  Zerar Consultas
+                </Button>
+              </div>
+
+              <div className="border-t" />
+
+              {/* Dar bônus */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <Gift className="h-4 w-4 text-green-500" />
+                  Dar Consultas Bônus
+                </p>
+                <p className="text-xs text-muted-foreground">Adiciona consultas extras sem alterar o plano.</p>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    min="1"
+                    max="1000"
+                    value={bonusAmount}
+                    onChange={(e) => setBonusAmount(e.target.value)}
+                    className="w-24"
+                    disabled={bonusMutation.isPending}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 border-green-200 text-green-700 hover:bg-green-50"
+                    onClick={() => bonusMutation.mutate({ userId: creditTarget.id, bonus: parseInt(bonusAmount) || 10 })}
+                    disabled={resetMutation.isPending || bonusMutation.isPending || setPlanMutation.isPending}
+                  >
+                    {bonusMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Gift className="mr-2 h-4 w-4" />}
+                    Adicionar Bônus
+                  </Button>
+                </div>
+              </div>
+
+              <div className="border-t" />
+
+              {/* Mudar plano */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <CreditCardIcon className="h-4 w-4 text-purple-500" />
+                  Mudar Plano Manualmente
+                </p>
+                <p className="text-xs text-muted-foreground">Ativa um plano sem cobrança. Reseta as consultas do mês.</p>
+                <div className="flex gap-2">
+                  <Select value={selectedPlan} onValueChange={setSelectedPlan}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Selecionar plano..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(allPlans || []).map((p: any) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name} ({p.consultasLimit === -1 ? "∞" : p.consultasLimit} consultas)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-purple-200 text-purple-700 hover:bg-purple-50"
+                    onClick={() => { if (selectedPlan) setPlanMutation.mutate({ userId: creditTarget.id, planSlug: selectedPlan }); }}
+                    disabled={!selectedPlan || resetMutation.isPending || bonusMutation.isPending || setPlanMutation.isPending}
+                  >
+                    {setPlanMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Aplicar"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreditTarget(null)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
