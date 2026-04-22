@@ -1,0 +1,20 @@
+CREATE TABLE `credit_analyses` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`userId` int NOT NULL,
+	`cnpj` varchar(18) NOT NULL,
+	`companyName` varchar(255),
+	`situacao` varchar(32),
+	`dataAbertura` varchar(16),
+	`capitalSocial` decimal(15,2),
+	`naturezaJuridica` varchar(128),
+	`score` int,
+	`hasProtestos` boolean DEFAULT false,
+	`valorDivida` decimal(15,2),
+	`quantidadeRestricoes` int DEFAULT 0,
+	`status` enum('APROVADO','REPROVADO','ANALISE_MANUAL') NOT NULL,
+	`motivo` text,
+	`alertSent` boolean DEFAULT false,
+	`pdfUrl` text,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `credit_analyses_id` PRIMARY KEY(`id`)
+);

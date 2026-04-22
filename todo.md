@@ -1,0 +1,80 @@
+# Maxxi Analise Pro - TODO
+
+- [x] Interface de busca de CNPJ com validação e formatação automática
+- [x] Dashboard principal com estatísticas (total, aprovadas, reprovadas, análise manual)
+- [x] Cards informativos com dados cadastrais (situação, abertura, capital social)
+- [x] Indicador visual de risco com código de cores (verde/amarelo/vermelho)
+- [x] Tabela de histórico com filtros por status e período
+- [x] Lógica de análise de crédito simulando Receita Federal e bureaus de crédito
+- [x] Sistema de pontuação (score) 0-1000 com regras de decisão configuráveis
+- [x] Relatórios detalhados com informações de dívidas e restrições
+- [x] Banco de dados para persistir histórico de análises
+- [x] Sistema de autenticação para controle de acesso
+- [x] Alertas automáticos ao proprietário para alto risco ou padrões suspeitos
+- [x] Geração de relatórios PDF profissional com logo da empresa (impressão via navegador)
+- [x] Preparação para APIs oficiais (Serasa, Boa Vista, Receita Federal) em produção
+- [x] Design system elegante e profissional (tema, cores, fontes)
+- [x] Layout com sidebar (DashboardLayout)
+- [x] Testes vitest para routers e lógica de crédito
+- [x] Integrar BrasilAPI para dados cadastrais reais da Receita Federal
+- [x] Integrar API Full (Boa Vista SCPC) para score, protestos e dívidas reais
+- [x] Refatorar creditEngine para usar APIs reais com fallback para simulação
+- [x] Atualizar frontend para exibir dados adicionais (sócios, endereço, protestos detalhados)
+- [x] Configurar token da API Full como variável de ambiente segura
+- [x] Escrever testes para as integrações com APIs externas
+- [x] Bug: Consulta à API Full Boa Vista retorna modo simulado mesmo com saldo disponível (corrigido: endpoint era scpc-boavista, não ap-boavista)
+- [x] Bug: Todas as consultas retornam dados simulados (Tech Solutions Brasil Ltda, score 0) em vez de dados reais das APIs (corrigido: token atualizado e saldo recarregado)
+- [x] Adicionar suporte a consulta de CPF (pessoa física) na plataforma
+- [x] Atualizar frontend para permitir escolha entre CPF e CNPJ
+- [x] Atualizar schema do banco para suportar tipo de documento (CPF/CNPJ)
+- [x] Bug: Consulta de CPF retorna nome simulado (João da Silva Santos) em vez de dados reais da API Full (corrigido: parsing de IDENTIFICACAO_PESSOA_FISICA)
+- [x] Integrar Stripe para pagamentos recorrentes (assinaturas)
+- [x] Criar schema de planos de assinatura (Básico, Pro, Enterprise)
+- [x] Implementar controle de limites de consultas por plano
+- [x] Página de planos/preços para novos assinantes
+- [x] Painel do assinante (consumo, histórico de pagamentos, gerenciar plano)
+- [x] Painel administrativo para gerenciar assinantes e receita
+- [x] Bloquear consultas para usuários sem assinatura ativa
+- [x] Webhooks Stripe para atualizar status de assinatura automaticamente
+- [x] Testes vitest para lógica de assinaturas e limites
+- [x] Bug: API Full desconta saldo mas retorna dados fictícios em vez dos dados reais do CPF/CNPJ consultado (corrigido: saldo recarregado e servidor reiniciado)
+- [x] Criar tabela de planos no banco de dados (nome, preço, limite de consultas, ativo/inativo)
+- [x] Migrar planos estáticos (products.ts) para o banco de dados
+- [x] Implementar routers tRPC para CRUD de planos (criar, editar, desativar)
+- [x] Atualizar lógica de checkout para usar planos do banco
+- [x] Implementar interface admin de gerenciamento de planos
+- [x] Atualizar página de preços para carregar planos do banco
+- [x] Testes vitest para CRUD de planos
+- [x] Bug: Checkout do Stripe mostra preço antigo ao clicar em "Assinar Agora" (corrigido: cache em memória agora valida valor, stripePriceIds limpos e servidor reiniciado)
+- [x] Configurar API Key da Asaas como variável de ambiente
+- [x] Criar módulo backend de integração com Asaas (clientes, cobranças)
+- [x] Implementar webhook Asaas para confirmação automática de pagamento
+- [x] Atualizar routers tRPC para usar Asaas (criar cobrança PIX/boleto/cartão)
+- [x] Atualizar frontend: página de checkout com opções PIX, boleto e cartão
+- [x] Liberar consultas automaticamente quando pagamento for confirmado
+- [x] Testes vitest para integração Asaas
+- [x] Bug: "API não configurada" aparece no navegador em produção (corrigido: ASAAS_API_KEY reconfigurada via webdev_request_secrets)
+- [x] Bug SEGURANÇA: Novos usuários verificados - role padrão já era 'user', apenas owner é admin
+- [x] Bug SEGURANÇA: Consultas agora filtradas por userId (list, getById, stats)
+- [x] Verificado: nenhum usuário foi criado como admin indevidamente
+- [x] Configurar novo token de autenticação do webhook Asaas (whsec_XJM1sZ455CjfkJBurnuiQflvViqsefOhEGzZnaTOVVo)
+- [x] Melhorar validação do token no webhook handler (rejeitar requisições sem token quando token está configurado)
+- [x] Webhook Asaas recriado e ativado no painel Asaas (status: Ativado)
+- [x] Bug PRODUÇÃO: "Sistema de pagamento temporariamente fora de serviço" em maxxianalise.com (corrigido: API Key agora é buscada do banco de dados quando env está vazia por causa do $ removido pelo deploy)
+- [x] Bug: Consulta de CPF retorna nome fictício (João da Silva Santos) em vez dos dados reais da API Full (corrigido: parsing agora aceita dados se NOME existe, não depende de STATUS_RETORNO)
+- [x] Sistema de cadastro próprio: tabela users com campo password (hash bcrypt)
+- [x] Backend: endpoint de registro (nome, email, senha)
+- [x] Backend: endpoint de login com email/senha (retorna JWT)
+- [x] Backend: endpoint de recuperação de senha por email
+- [x] Frontend: página de cadastro (/cadastro)
+- [x] Frontend: página de login com email/senha (/login)
+- [x] Frontend: página de recuperação de senha (/recuperar-senha) e redefinição (/redefinir-senha)
+- [x] Manter login Manus OAuth apenas para admin (DashboardLayout e main.tsx redirecionam para /login)
+- [x] Testes vitest para registro, login e autenticação (10 testes em localAuth.test.ts)
+- [x] Redirecionar para página de planos quando créditos do plano acabarem (banner de aviso + toast com botão + verificação pré-submit)
+- [x] Implementar envio de email real para recuperação de senha via Resend (link de redefinição + email de boas-vindas)
+- [x] Admin: função de excluir usuário para permitir recadastro (com diálogo de confirmação e proteção contra auto-exclusão)
+- [x] Bug: Botão do plano atual na página de planos não permite recompra/renovação quando créditos esgotados (agora mostra "Renovar Plano" quando créditos acabam)
+- [x] Atualizar remetente de email de onboarding@resend.dev para noreply@maxxianalise.com (domínio verificado)
+- [ ] Auditoria completa de segurança do projeto
+- [ ] Implementar melhorias de segurança identificadas na auditoria

@@ -1,0 +1,1 @@
+ALTER TABLE `credit_analyses` ADD `documentType` varchar(4) DEFAULT 'cnpj';
