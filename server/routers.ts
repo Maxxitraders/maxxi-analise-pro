@@ -14,6 +14,7 @@ import {
   getUserById,
   incrementConsultasUsed,
   getAllSubscribers,
+  getAllUsers,
   getSubscriptionStats,
   updateUserAsaasCustomerId,
   updateUserAsaasSubscription,
@@ -21,6 +22,7 @@ import {
   deactivateSubscription,
   deleteUser,
   deleteSimulatedAnalyses,
+  updateUserProfile,
 } from "./db";
 import {
   runCreditAnalysis,
@@ -56,7 +58,7 @@ import {
   resetPassword,
   getUserByEmail,
 } from "./localAuth";
-import { sendPasswordResetEmail, sendWelcomeEmail } from "./email";
+import { sendPasswordResetEmail, sendWelcomeEmail, sendPaymentConfirmationEmail, isEmailConfigured } from "./email";
 import {
   ensureAsaasCustomer,
   createAsaasPayment,
@@ -106,7 +108,61 @@ export const appRouter = router({
       return { success: true } as const;
     }),
 
-    // ── Cadastro com email/senha ──
+    // ── Atualizar perfil ──
+    updateProfile: protectedProcedure
+      .input(z.object({
+        name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres").optional(),
+        email: z.string().email("Email inválido").optional(),
+        newPassword: z.string().min(6, "Senha deve ter pelo menos 6 caracteres").optional(),
+        currentPassword: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { hashPassword, verifyPassword } = await import("./localAuth");
+        const db_module = await import("./db");
+        const db = await db_module.getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível" });
+
+        const { users: usersTable } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+
+        const currentUser = await db_module.getUserById(ctx.user.id);
+        if (!currentUser) throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado" });
+
+        // Se quiser trocar senha, verificar senha atual
+        if (input.newPassword) {
+          if (!currentUser.passwordHash) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Esta conta não possui senha definida. Use o fluxo de recuperação de senha." });
+          }
+          if (!input.currentPassword) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Informe a senha atual para definir uma nova." });
+          }
+          const valid = await verifyPassword(input.currentPassword, currentUser.passwordHash);
+          if (!valid) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Senha atual incorreta." });
+          }
+        }
+
+        // Verificar se email já está em uso por outro usuário
+        if (input.email && input.email !== currentUser.email) {
+          const existing = await getUserByEmail(input.email);
+          if (existing && existing.id !== ctx.user.id) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Este email já está em uso por outra conta." });
+          }
+        }
+
+        const updates: Record<string, unknown> = {};
+        if (input.name) updates.name = input.name;
+        if (input.email) updates.email = input.email;
+        if (input.newPassword) updates.passwordHash = await hashPassword(input.newPassword);
+
+        if (Object.keys(updates).length > 0) {
+          await db.update(usersTable).set(updates).where(eq(usersTable.id, ctx.user.id));
+        }
+
+        return { success: true, message: "Perfil atualizado com sucesso." };
+      }),
+
+
     register: publicProcedure
       .input(z.object({
         name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
@@ -170,31 +226,33 @@ export const appRouter = router({
         origin: z.string(), // URL base do frontend
       }))
       .mutation(async ({ input }) => {
+        // Se Resend não estiver configurado, avisar imediatamente (não silenciar)
+        if (!isEmailConfigured()) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Serviço de email não configurado. Entre em contato com o suporte.",
+          });
+        }
+
         const result = await requestPasswordReset(input.email);
         if (result) {
           const resetLink = `${input.origin}/redefinir-senha?token=${result.token}`;
-          // Buscar nome do usuário para personalizar o email
           const user = await getUserByEmail(input.email);
-          // Enviar email diretamente ao cliente via Resend
           const emailSent = await sendPasswordResetEmail({
             to: input.email,
             resetLink,
             userName: user?.name || undefined,
           });
           if (!emailSent) {
-            // Fallback: notificar o admin se o email não puder ser enviado
-            try {
-              await notifyOwner({
-                title: "Recuperação de senha (email falhou)",
-                content: `Usuário ${input.email} solicitou recuperação de senha, mas o email não pôde ser enviado.\nLink: ${resetLink}\n\nEncaminhe este link ao usuário.`,
-              });
-            } catch {
-              // Não bloquear
-            }
+            // Email configurado mas falhou no envio (domínio não verificado, etc)
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Não foi possível enviar o email. Verifique se o domínio está verificado no Resend e tente novamente.",
+            });
           }
         }
         // Sempre retornar sucesso para não revelar se o email existe
-        return { success: true, message: "Se o email estiver cadastrado, você receberá instruções para redefinir sua senha." };
+        return { success: true, message: "Se o email estiver cadastrado, você receberá as instruções em instantes." };
       }),
 
     // ── Redefinir senha com token ──
@@ -424,6 +482,33 @@ export const appRouter = router({
         return { success: true, message: "Usuário excluído com sucesso." };
       }),
 
+    // ── Listar todos os usuários (Admin) ──
+    allUsers: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a administradores." });
+      }
+      const all = await getAllUsers();
+      const allPlans = await getAllPlans();
+      const planMap = new Map(allPlans.map((p: PlanData) => [p.id, p]));
+
+      return all.map(u => {
+        const plan = planMap.get(u.planId || "none");
+        return {
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          planId: u.planId,
+          planName: plan?.name || "Sem plano",
+          subscriptionStatus: u.subscriptionStatus,
+          consultasUsed: u.consultasUsedThisMonth,
+          consultasLimit: plan?.consultasLimit ?? 0,
+          loginMethod: u.loginMethod,
+          createdAt: u.createdAt,
+          lastSignedIn: u.lastSignedIn,
+        };
+      });
+    }),
+
     // ── Plan Management (Admin CRUD) ──
     listPlans: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== "admin") {
@@ -596,6 +681,20 @@ export const appRouter = router({
         const count = await deleteSimulatedAnalyses();
         return { success: true, deleted: count, message: `${count} registro(s) simulado(s) removido(s) com sucesso.` };
       }),
+
+    // ── Diagnóstico de email ──
+    emailStatus: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a administradores." });
+      }
+      const { isEmailConfigured, verifyResendApiKey } = await import("./email");
+      const configured = isEmailConfigured();
+      let working = false;
+      if (configured) {
+        working = await verifyResendApiKey();
+      }
+      return { configured, working };
+    }),
   }),
 
   // ── Credit Analysis ──

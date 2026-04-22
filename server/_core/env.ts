@@ -11,4 +11,5 @@ export const ENV = {
   get stripeSecretKey() { return process.env.STRIPE_SECRET_KEY ?? ""; },
   get stripeWebhookSecret() { return process.env.STRIPE_WEBHOOK_SECRET ?? ""; },
   get asaasApiKey() { return process.env.ASAAS_API_KEY ?? ""; },
+  get resendApiKey() { return process.env.RESEND_API_KEY ?? ""; },
 };

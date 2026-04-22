@@ -187,6 +187,22 @@ export async function getAllSubscribers() {
   return result;
 }
 
+export async function getAllUsers() {
+  const db = await getDb();
+  if (!db) return [];
+  const result = await db.select().from(users).orderBy(desc(users.createdAt));
+  return result;
+}
+
+export async function updateUserProfile(userId: number, params: { name?: string; email?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({
+    ...(params.name !== undefined && { name: params.name }),
+    ...(params.email !== undefined && { email: params.email }),
+  }).where(eq(users.id, userId));
+}
+
 export async function getSubscriptionStats() {
   const db = await getDb();
   if (!db) return { totalSubscribers: 0, activeSubscribers: 0, totalRevenue: 0 };

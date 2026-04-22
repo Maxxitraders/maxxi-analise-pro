@@ -9,8 +9,10 @@ import {
   getUserByAsaasCustomerId,
   activateSubscription,
   deactivateSubscription,
+  getUserById,
 } from "./db";
 import { getPlanBySlug } from "./products";
+import { sendPaymentConfirmationEmail } from "./email";
 
 export async function handleAsaasWebhook(req: Request, res: Response) {
   try {
@@ -64,6 +66,23 @@ export async function handleAsaasWebhook(req: Request, res: Response) {
       await activateSubscription(userId, planSlug, subscriptionId);
 
       console.log(`[Asaas Webhook] Assinatura ativada! User: ${userId}, Plano: ${plan.name}`);
+
+      // Enviar email de confirmação de pagamento
+      try {
+        const user = await getUserById(userId);
+        if (user?.email) {
+          await sendPaymentConfirmationEmail({
+            to: user.email,
+            userName: user.name || undefined,
+            planName: plan.name,
+            consultasLimit: plan.consultasLimit,
+          });
+          console.log(`[Asaas Webhook] Email de confirmação enviado para: ${user.email}`);
+        }
+      } catch (emailError) {
+        console.error("[Asaas Webhook] Falha ao enviar email de confirmação:", emailError);
+        // Não bloquear o fluxo principal
+      }
     }
 
     // Pagamento estornado/removido → desativar assinatura
