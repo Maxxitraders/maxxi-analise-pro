@@ -7,6 +7,8 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 320 }),
   passwordHash: varchar("passwordHash", { length: 255 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
+  cpfCnpj: varchar("cpfCnpj", { length: 32 }),
+  phone: varchar("phone", { length: 32 }),
   resetToken: varchar("resetToken", { length: 128 }),
   resetTokenExpiry: timestamp("resetTokenExpiry"),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),

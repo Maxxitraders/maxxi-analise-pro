@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Check, Loader2, Sparkles, Shield, Zap, Crown, Rocket, Star, Diamond, QrCode, FileText, CreditCard, Copy, ExternalLink, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -24,6 +26,38 @@ function getPlanIcon(slug: string, index: number) {
 }
 
 type PaymentMethod = "PIX" | "BOLETO" | "CREDIT_CARD";
+
+// ── Formatadores ──
+function formatCpfCnpj(value: string): string {
+  const cleaned = value.replace(/\D/g, "");
+  if (cleaned.length <= 11) {
+    // CPF: 000.000.000-00
+    return cleaned
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  }
+  // CNPJ: 00.000.000/0000-00
+  return cleaned
+    .slice(0, 14)
+    .replace(/(\d{2})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1/$2")
+    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+}
+
+function formatPhone(value: string): string {
+  const cleaned = value.replace(/\D/g, "").slice(0, 11);
+  if (cleaned.length <= 10) {
+    return cleaned.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{4})(\d{1,4})$/, "$1-$2");
+  }
+  return cleaned.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d{1,4})$/, "$1-$2");
+}
+
+function isValidCpfCnpj(value: string): boolean {
+  const cleaned = value.replace(/\D/g, "");
+  return cleaned.length === 11 || cleaned.length === 14;
+}
 
 interface PaymentResult {
   paymentId: string;
@@ -56,6 +90,17 @@ export default function Planos() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
   const [pixCopied, setPixCopied] = useState(false);
+  const [cpfCnpj, setCpfCnpj] = useState("");
+  const [phone, setPhone] = useState("");
+
+  // Carregar dados salvos do usuário
+  const { data: currentUser } = trpc.auth.me.useQuery(undefined, { enabled: !!user });
+  useEffect(() => {
+    if (currentUser) {
+      if ((currentUser as any).cpfCnpj) setCpfCnpj(formatCpfCnpj((currentUser as any).cpfCnpj));
+      if ((currentUser as any).phone) setPhone(formatPhone((currentUser as any).phone));
+    }
+  }, [currentUser]);
 
   const createAsaasCheckout = trpc.subscription.createAsaasCheckout.useMutation({
     onSuccess: (data) => {
@@ -99,9 +144,15 @@ export default function Planos() {
 
   const handlePayment = (method: PaymentMethod) => {
     if (!selectedPlan) return;
+    if (!isValidCpfCnpj(cpfCnpj)) {
+      toast.error("Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.");
+      return;
+    }
     createAsaasCheckout.mutate({
       planSlug: selectedPlan,
       billingType: method,
+      cpfCnpj: cpfCnpj.replace(/\D/g, ""),
+      phone: phone ? phone.replace(/\D/g, "") : undefined,
     });
   };
 
@@ -240,6 +291,35 @@ export default function Planos() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 mt-4">
+            {/* Campos obrigatórios para cobrança */}
+            <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+              <p className="text-xs font-medium text-muted-foreground">Dados para cobrança</p>
+              <div className="space-y-1.5">
+                <Label htmlFor="cpfCnpj" className="text-xs">CPF ou CNPJ <span className="text-red-500">*</span></Label>
+                <Input
+                  id="cpfCnpj"
+                  placeholder="000.000.000-00"
+                  value={cpfCnpj}
+                  onChange={(e) => setCpfCnpj(formatCpfCnpj(e.target.value))}
+                  maxLength={18}
+                  inputMode="numeric"
+                  disabled={createAsaasCheckout.isPending}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="phone" className="text-xs">Telefone (opcional)</Label>
+                <Input
+                  id="phone"
+                  placeholder="(00) 00000-0000"
+                  value={phone}
+                  onChange={(e) => setPhone(formatPhone(e.target.value))}
+                  maxLength={15}
+                  inputMode="tel"
+                  disabled={createAsaasCheckout.isPending}
+                />
+              </div>
+            </div>
+
             <Button
               variant="outline"
               className="w-full h-16 justify-start gap-4 text-left"

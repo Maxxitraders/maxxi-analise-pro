@@ -309,6 +309,8 @@ export const appRouter = router({
       .input(z.object({
         planSlug: z.string(),
         billingType: z.enum(["BOLETO", "CREDIT_CARD", "PIX", "UNDEFINED"]),
+        cpfCnpj: z.string().optional(),
+        phone: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const user = await getUserById(ctx.user.id);
@@ -316,15 +318,37 @@ export const appRouter = router({
 
         const plan = await getPlanBySlug(input.planSlug);
         if (!plan || !plan.active) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Plano n\u00e3o encontrado ou inativo." });
+          throw new TRPCError({ code: "NOT_FOUND", message: "Plano não encontrado ou inativo." });
         }
 
-        // Garantir que o cliente existe na Asaas
+        // Validar CPF/CNPJ — obrigatório para criar cobrança Asaas
+        const cleanedCpfCnpj = (input.cpfCnpj || user.cpfCnpj || "").replace(/\D/g, "");
+        if (!cleanedCpfCnpj || (cleanedCpfCnpj.length !== 11 && cleanedCpfCnpj.length !== 14)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "CPF ou CNPJ é obrigatório para gerar a cobrança. Informe um CPF (11 dígitos) ou CNPJ (14 dígitos).",
+          });
+        }
+
+        // Salvar CPF/CNPJ e telefone no cadastro do usuário se ainda não tiver
+        const db_module = await import("./db");
+        const db = await db_module.getDb();
+        if (db && (!user.cpfCnpj || (input.phone && !user.phone))) {
+          const { users: usersTable } = await import("../drizzle/schema");
+          const { eq } = await import("drizzle-orm");
+          await db.update(usersTable).set({
+            ...(!user.cpfCnpj && { cpfCnpj: cleanedCpfCnpj }),
+            ...(input.phone && !user.phone && { phone: input.phone.replace(/\D/g, "") }),
+          }).where(eq(usersTable.id, ctx.user.id));
+        }
+
+        // Garantir que o cliente existe na Asaas (agora com CPF/CNPJ)
         let asaasCustomerId = user.asaasCustomerId;
         if (!asaasCustomerId) {
           asaasCustomerId = await ensureAsaasCustomer({
             name: user.name || "Cliente",
             email: user.email || "",
+            cpfCnpj: cleanedCpfCnpj,
           });
           await updateUserAsaasCustomerId(ctx.user.id, asaasCustomerId);
         }

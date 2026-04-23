@@ -108,6 +108,23 @@ async function migrate() {
       )
     `);
 
+    // ── Migrações incrementais (adicionar colunas novas se não existirem) ──
+    const addColumnIfNotExists = async (table: string, column: string, definition: string) => {
+      const [rows] = await conn!.execute(
+        `SELECT COUNT(*) as count FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+        [table, column]
+      );
+      const count = (rows as any)[0].count;
+      if (count === 0) {
+        console.log(`[Migrate] Adicionando coluna ${column} em ${table}...`);
+        await conn!.execute(`ALTER TABLE \`${table}\` ADD COLUMN ${definition}`);
+      }
+    };
+
+    await addColumnIfNotExists("users", "cpfCnpj", "`cpfCnpj` varchar(32)");
+    await addColumnIfNotExists("users", "phone", "`phone` varchar(32)");
+
     // Inserir planos padrão se não existirem
     await conn.execute(`
       INSERT IGNORE INTO \`plans\` (\`slug\`, \`name\`, \`description\`, \`monthlyPrice\`, \`consultasLimit\`, \`features\`, \`popular\`, \`active\`, \`sortOrder\`) VALUES
