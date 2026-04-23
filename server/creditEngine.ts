@@ -504,12 +504,21 @@ async function fetchApiFullSerasaPremium(doc: string): Promise<ApiFullResult | n
 
     const result = await response.json();
 
-    if (!response.ok || result.status !== "sucesso" || !result.dados?.CREDCADASTRAL) {
+if (!response.ok || result.status !== "sucesso" || !result.dados?.CREDCADASTRAL) {
+      // DEBUG detalhado para diagnosticar problema do Serasa Premium
+      console.warn(`[APIFull Serasa DEBUG] FALHA DETALHADA:`, {
+        httpStatus: response.status,
+        httpOk: response.ok,
+        responseStatus: result?.status,
+        responseMessage: result?.message,
+        hasDados: !!result?.dados,
+        hasCredCadastral: !!result?.dados?.CREDCADASTRAL,
+        bodyPreview: JSON.stringify(result).substring(0, 800)
+      });
       const msg = result.message || result.status || `HTTP ${response.status}`;
       console.warn(`[APIFull Serasa] ${msg} para ${docType.toUpperCase()} ${cleaned}`);
       return null;
     }
-
     const cc = result.dados.CREDCADASTRAL;
 
     // ── Parse SCORES ──
