@@ -1,6 +1,6 @@
 import { eq, desc, and, gte, lte, count, sql, like, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, creditAnalyses, InsertCreditAnalysis, CreditAnalysis } from "../drizzle/schema";
+import { InsertUser, users, creditAnalyses, InsertCreditAnalysis, CreditAnalysis, transactions, InsertTransaction, Transaction } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -318,4 +318,54 @@ export async function deleteSimulatedAnalyses(): Promise<number> {
     eq(creditAnalyses.creditDataSource, "simulado")
   );
   return Number((result[0] as any).affectedRows ?? 0);
+}
+
+// ── Wallet / Saldo Functions ──
+
+export async function getUserSaldo(userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const user = await db.select({ saldo: users.saldo }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!user || user.length === 0) throw new Error("User not found");
+  
+  return parseFloat(String(user[0].saldo || "0"));
+}
+
+export async function addSaldoToUser(userId: number, valor: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(users)
+    .set({ saldo: sql`saldo + ${valor}` })
+    .where(eq(users.id, userId));
+}
+
+export async function debitSaldoFromUser(userId: number, valor: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(users)
+    .set({ saldo: sql`saldo - ${valor}` })
+    .where(eq(users.id, userId));
+}
+
+export async function insertTransaction(transaction: InsertTransaction): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(transactions).values(transaction);
+  return Number((result[0] as any).insertId);
+}
+
+export async function listTransactions(userId: number, limit: number = 20, offset: number = 0): Promise<Transaction[]> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return await db.select()
+    .from(transactions)
+    .where(eq(transactions.userId, userId))
+    .orderBy(desc(transactions.createdAt))
+    .limit(limit)
+    .offset(offset);
 }

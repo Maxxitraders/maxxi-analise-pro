@@ -780,19 +780,47 @@ export const appRouter = router({
           });
         }
 
-        // Check subscription and limits
-        const freshUser = await getUserById(ctx.user.id);
-        if (freshUser) {
-          checkSubscriptionAccess(freshUser);
-          checkConsultasLimit(freshUser);
+        // NOVO: Verificar saldo ANTES de tudo
+        const custoConsulta = input.bureau === "serasa_premium" ? 15.00 : 6.50;
+        const { getUserSaldo, debitSaldoFromUser, addSaldoToUser, insertTransaction } = await import("./db");
+        const saldoAtual = await getUserSaldo(ctx.user.id);
+        
+        if (saldoAtual < custoConsulta) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: `Saldo insuficiente. Você tem R$ ${saldoAtual.toFixed(2)} e precisa de R$ ${custoConsulta.toFixed(2)}. Faltam R$ ${(custoConsulta - saldoAtual).toFixed(2)}.`
+          });
         }
+
+        // Debitar saldo ANTES da consulta
+        await debitSaldoFromUser(ctx.user.id, custoConsulta);
+        
+        // Registrar transação de débito
+        await insertTransaction({
+          userId: ctx.user.id,
+          tipo: "consulta",
+          valor: String(-custoConsulta),
+          descricao: `Consulta ${input.bureau === "serasa_premium" ? "Serasa Premium" : "Boa Vista"} - ${cleaned}`,
+          bureauTipo: input.bureau,
+          asaasPaymentId: null,
+        });
 
         let result;
         try {
           result = await runCreditAnalysis(cleaned, input.bureau);
         } catch (err: any) {
+          // SE FALHAR: estornar o saldo
+          await addSaldoToUser(ctx.user.id, custoConsulta);
+          await insertTransaction({
+            userId: ctx.user.id,
+            tipo: "estorno",
+            valor: String(custoConsulta),
+            descricao: `Estorno - falha na consulta ${input.bureau}`,
+            bureauTipo: input.bureau,
+            asaasPaymentId: null,
+          });
+          
           if (err instanceof ApiUnavailableError) {
-            // API falhou — NÃO debitar o crédito do usuário
             throw new TRPCError({
               code: "SERVICE_UNAVAILABLE",
               message: err.message,
@@ -837,7 +865,7 @@ export const appRouter = router({
           bureau: input.bureau,
         });
 
-        // Increment consultas used
+        // Increment consultas used (para estatísticas)
         await incrementConsultasUsed(ctx.user.id);
 
         // Enviar alerta ao proprietário se alto risco
@@ -918,6 +946,45 @@ export const appRouter = router({
           isValid,
           documentType: docType,
           formatted: isValid ? formatDocument(cleaned) : null,
+        };
+      }),
+  }),
+
+  // ── Wallet / Carteira ──
+  wallet: router({
+    getSaldo: protectedProcedure.query(async ({ ctx }) => {
+      const { getUserSaldo } = await import("./db");
+      const saldo = await getUserSaldo(ctx.user.id);
+      return { saldo };
+    }),
+
+    getTransacoes: protectedProcedure
+      .input(z.object({ 
+        limit: z.number().default(20),
+        offset: z.number().default(0) 
+      }))
+      .query(async ({ ctx, input }) => {
+        const { listTransactions } = await import("./db");
+        return await listTransactions(ctx.user.id, input.limit, input.offset);
+      }),
+
+    adicionarSaldo: protectedProcedure
+      .input(z.object({
+        valor: z.number().min(5).max(1000),
+        metodoPagamento: z.enum(["PIX", "CREDIT_CARD", "BOLETO"])
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // Cria cobrança no Asaas
+        const payment = await createAsaasPayment({
+          customer: ctx.user.asaasCustomerId!,
+          value: input.valor,
+          billingType: input.metodoPagamento as BillingType,
+          description: `Recarga de créditos - Maxxi Analise`,
+        });
+
+        return { 
+          paymentUrl: payment.invoiceUrl, 
+          paymentId: payment.id 
         };
       }),
   }),

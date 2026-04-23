@@ -22,6 +22,7 @@ export const users = mysqlTable("users", {
   subscriptionStatus: varchar("subscriptionStatus", { length: 32 }).default("none"),
   consultasUsedThisMonth: int("consultasUsedThisMonth").default(0),
   consultasResetAt: timestamp("consultasResetAt"),
+  saldo: decimal("saldo", { precision: 10, scale: 2 }).default("0.00").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -92,3 +93,17 @@ export const creditAnalyses = mysqlTable("credit_analyses", {
 
 export type CreditAnalysis = typeof creditAnalyses.$inferSelect;
 export type InsertCreditAnalysis = typeof creditAnalyses.$inferInsert;
+
+export const transactions = mysqlTable("transactions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  tipo: mysqlEnum("tipo", ["recarga", "consulta", "estorno"]).notNull(),
+  valor: decimal("valor", { precision: 10, scale: 2 }).notNull(),
+  descricao: text("descricao").notNull(),
+  bureauTipo: varchar("bureauTipo", { length: 32 }), // 'boa_vista' ou 'serasa_premium' (null se for recarga)
+  asaasPaymentId: varchar("asaasPaymentId", { length: 128 }), // ID do pagamento no Asaas
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Transaction = typeof transactions.$inferSelect;
+export type InsertTransaction = typeof transactions.$inferInsert;

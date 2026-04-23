@@ -14,6 +14,7 @@ import Assinatura from "./pages/Assinatura";
 import Admin from "./pages/Admin";
 import AdminPlanos from "./pages/AdminPlanos";
 import MinhaConta from "./pages/MinhaConta";
+import Carteira from "./pages/Carteira";
 import Login from "./pages/Login";
 import Cadastro from "./pages/Cadastro";
 import RecuperarSenha from "./pages/RecuperarSenha";
@@ -37,6 +38,7 @@ function Router() {
             <Route path="/historico" component={Historico} />
             <Route path="/detalhes/:id" component={Detalhes} />
             <Route path="/planos" component={Planos} />
+            <Route path="/carteira" component={Carteira} />
             <Route path="/assinatura" component={Assinatura} />
             <Route path="/admin" component={Admin} />
             <Route path="/admin/planos" component={AdminPlanos} />
