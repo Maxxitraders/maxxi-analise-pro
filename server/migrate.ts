@@ -124,6 +124,8 @@ async function migrate() {
 
     await addColumnIfNotExists("users", "cpfCnpj", "`cpfCnpj` varchar(32)");
     await addColumnIfNotExists("users", "phone", "`phone` varchar(32)");
+    await addColumnIfNotExists("credit_analyses", "bureau", "`bureau` varchar(32) DEFAULT 'boavista'");
+
 
     // Inserir planos padrão se não existirem
     await conn.execute(`

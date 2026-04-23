@@ -764,7 +764,10 @@ export const appRouter = router({
   // ── Credit Analysis ──
   credit: router({
     analyze: protectedProcedure
-      .input(z.object({ document: z.string().min(11).max(18) }))
+      .input(z.object({ 
+        document: z.string().min(11).max(18),
+        bureau: z.enum(["boavista", "serasa_premium"]).optional().default("boavista")
+      }))
       .mutation(async ({ ctx, input }) => {
         const cleaned = input.document.replace(/\D/g, "");
         if (!validateDocument(cleaned)) {
@@ -786,7 +789,7 @@ export const appRouter = router({
 
         let result;
         try {
-          result = await runCreditAnalysis(cleaned);
+          result = await runCreditAnalysis(cleaned, input.bureau);
         } catch (err: any) {
           if (err instanceof ApiUnavailableError) {
             // API falhou — NÃO debitar o crédito do usuário
@@ -831,6 +834,7 @@ export const appRouter = router({
           chequesSustados: result.credit.chequesSustados,
           cadastralDataSource: result.cadastral.dataSource,
           creditDataSource: result.credit.dataSource,
+          bureau: input.bureau,
         });
 
         // Increment consultas used
@@ -841,6 +845,8 @@ export const appRouter = router({
           try {
             const sourceInfo = result.credit.dataSource === "apifull_boavista"
               ? " (dados reais Boa Vista SCPC)"
+              : result.credit.dataSource === "apifull_serasa_premium"
+              ? " (dados reais Serasa Premium)"
               : " (dados simulados)";
             const docLabel = result.cadastral.documentType === "cpf" ? "CPF" : "CNPJ";
             await notifyOwner({

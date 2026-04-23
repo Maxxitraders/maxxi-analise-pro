@@ -77,7 +77,7 @@ export interface CreditData {
   contumacia: number;
   rendaPresumida: string;
   passagensComerciais: number;
-  dataSource: "apifull_boavista" | "simulado";
+  dataSource: "apifull_boavista" | "apifull_serasa_premium" | "simulado";
 }
 
 export interface AnalysisResult {
@@ -476,6 +476,199 @@ async function fetchApiFullBoaVista(doc: string): Promise<ApiFullResult | null> 
   }
 }
 
+// ── Consulta Serasa Premium ──
+async function fetchApiFullSerasaPremium(doc: string): Promise<ApiFullResult | null> {
+  const token = ENV.apiFullToken;
+  if (!token) {
+    console.info("[APIFull Serasa] Token não configurado. Usando dados simulados.");
+    return null;
+  }
+
+  const cleaned = cleanDocument(doc);
+  const docType = detectDocumentType(cleaned);
+
+  try {
+    const response = await fetch("https://api.apifull.com.br/api/ap-serasa-premium", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "*/*",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        document: cleaned,
+        link: "ap-serasa-premium",
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || result.status !== "sucesso" || !result.dados?.CREDCADASTRAL) {
+      const msg = result.message || result.status || `HTTP ${response.status}`;
+      console.warn(`[APIFull Serasa] ${msg} para ${docType.toUpperCase()} ${cleaned}`);
+      return null;
+    }
+
+    const cc = result.dados.CREDCADASTRAL;
+
+    // ── Parse SCORES ──
+    let score = 0;
+    let scoreMensagem = "";
+    let scoreClassificacao = "";
+    let probabilidadeInadimplencia = "";
+
+    if (cc.SCORES?.OCORRENCIAS?.length > 0) {
+      const scoreData = cc.SCORES.OCORRENCIAS[0];
+      score = parseInt(scoreData.SCORE || "0", 10);
+      scoreMensagem = scoreData.TEXTO || "";
+      scoreClassificacao = scoreData.CLASSIF_ABC || "";
+      probabilidadeInadimplencia = scoreData.PROBABILIDADE_INADIMPLENCIA || "";
+    }
+
+    // ── Parse PROTESTOS ──
+    const protestosSection = cc.PROTESTOS || {};
+    const protestoQtd = parseInt(protestosSection.QUANTIDADE_OCORRENCIA || protestosSection.QUANTIDADE_OCORRENCIAS || "0", 10);
+    const protestoValorTotal = parseBrCurrency(protestosSection.VALOR_TOTAL);
+    const protestosRaw = protestosSection.OCORRENCIAS || [];
+    const protestos: ProtestoDetalhe[] = protestosRaw.map((p: any) => ({
+      data: p.DATA_OCORRENCIA || p.DATA || "",
+      valor: p.VALOR || "0",
+      cartorio: p.CARTORIO || p.INFORMANTE || "",
+      cidade: p.CIDADE || p.PRACA || "",
+    }));
+
+    // ── Parse PENDÊNCIAS FINANCEIRAS ──
+    const pendenciasSection = cc.PEND_FINANCEIRAS || {};
+    const pendenciaQtd = parseInt(pendenciasSection.QUANTIDADE_OCORRENCIA || pendenciasSection.QUANTIDADE_OCORRENCIAS || "0", 10);
+    const pendenciaValorTotal = parseBrCurrency(pendenciasSection.VALOR_TOTAL);
+    const pendenciasRaw = pendenciasSection.OCORRENCIAS || [];
+    const pendenciasFinanceiras: PendenciaFinanceira[] = pendenciasRaw.map((p: any) => ({
+      data: p.DATA_OCORRENCIA || p.DATA || undefined,
+      valor: p.VALOR || "0",
+      credor: p.INFORMANTE || p.CREDOR || undefined,
+    }));
+
+    // ── Parse CHEQUES ──
+    const chVarejo = cc.CH_SEM_FUNDOS_VAREJO || {};
+    const chBacen = cc.CH_SEM_FUNDOS_BACEN || {};
+    const chequesSemFundo =
+      parseInt(chVarejo.QUANTIDADE_OCORRENCIA || chVarejo.QUANTIDADE_OCORRENCIAS || "0", 10) +
+      parseInt(chBacen.QUANTIDADE_OCORRENCIA || chBacen.QUANTIDADE_OCORRENCIAS || "0", 10);
+
+    // ── Parse CONTUMACIA ──
+    const contumaciaSection = cc.CONTUMACIA || {};
+    const contumacia = parseInt(contumaciaSection.QUANTIDADE_OCORRENCIA || contumaciaSection.QUANTIDADE_OCORRENCIAS || "0", 10);
+
+    // ── Parse RENDA PRESUMIDA ──
+    const rendaSection = cc.RENDA_PRESUMIDA || {};
+    const rendaPresumida = rendaSection.FAIXA || rendaSection.DESCRICAO || "";
+
+    // ── Parse PASSAGENS COMERCIAIS ──
+    const passagensSection = cc.PASSAGENS_COMERCIAIS || {};
+    const passagensComerciais = parseInt(passagensSection.QUANTIDADE_OCORRENCIA || passagensSection.QUANTIDADE_OCORRENCIAS || "0", 10);
+
+    // ── Totais ──
+    const valorDivida = protestoValorTotal + pendenciaValorTotal;
+    const hasProtestos = protestoQtd > 0 || pendenciaQtd > 0;
+    const quantidadeRestricoes = protestoQtd + pendenciaQtd;
+
+    const credit: CreditData = {
+      score,
+      scoreMensagem,
+      scoreClassificacao,
+      probabilidadeInadimplencia,
+      hasProtestos,
+      valorDivida,
+      quantidadeRestricoes,
+      protestos,
+      pendenciasFinanceiras,
+      chequesSemFundo,
+      chequesSustados: 0,
+      contumacia,
+      rendaPresumida,
+      passagensComerciais,
+      dataSource: "apifull_serasa_premium",
+    };
+
+    // ── Extrair dados cadastrais da resposta ──
+    let cadastral: CadastralData | null = null;
+
+    if (docType === "cpf") {
+      const ipf = cc.IDENTIFICACAO_PESSOA_FISICA;
+      
+      if (ipf && (ipf.NOME || ipf.STATUS_RETORNO?.CODIGO === "1")) {
+        cadastral = {
+          cnpj: formatCpf(cleaned),
+          document: cleaned,
+          documentType: "cpf",
+          companyName: ipf.NOME || "Não informado",
+          nomeFantasia: ipf.NOME_SOCIAL || "",
+          situacao: ipf.CPF_SITUACAO || ipf.SITUACAO || "DESCONHECIDA",
+          dataAbertura: ipf.NASCIMENTO || ipf.DATA_NASCIMENTO || "",
+          capitalSocial: 0,
+          naturezaJuridica: "Pessoa Física",
+          atividadePrincipal: "",
+          endereco: ipf.END_LOGRADOURO || ipf.ENDERECO || "",
+          bairro: ipf.END_BAIRRO || ipf.BAIRRO || "",
+          cidade: ipf.END_CIDADE || ipf.CIDADE || "",
+          uf: ipf.END_UF || ipf.UF || ipf.CPF_ORIGEM || "",
+          cep: ipf.END_CEP || ipf.CEP || "",
+          telefone: formatPhone(ipf.TELEFONE || ipf.DDD_TELEFONE || ""),
+          email: ipf.EMAIL || "",
+          porte: ipf.FAIXA_RENDA || ipf.CLASSE_SOCIAL || ipf.RENDA_PRESUMIDA || "",
+          socios: [],
+          dataSource: "apifull",
+        };
+        console.info(`[APIFull Serasa] Dados cadastrais de CPF obtidos: ${ipf.NOME}`);
+      }
+    } else {
+      // CNPJ: dados em INFORMACOES_DA_EMPRESA
+      const ie = cc.INFORMACOES_DA_EMPRESA;
+      
+      if (ie && (ie.RAZAO_SOCIAL || ie.STATUS_RETORNO?.CODIGO === "1")) {
+        const endRaw = ie.ENDERECO_COMPLETO || {};
+        const endObj = typeof endRaw === "object" ? endRaw : {};
+        const sociosRaw = ie.QUADRO_SOCIETARIO?.OCORRENCIAS || [];
+        const socios = sociosRaw.map((s: any) => ({
+          nome: s.NOME || s.PARTICIPANTE || "",
+          qualificacao: s.QUALIFICACAO || s.CARGO || "",
+          participacao: s.PARTICIPACAO || "",
+        }));
+
+        cadastral = {
+          cnpj: formatCnpj(cleaned),
+          document: cleaned,
+          documentType: "cnpj",
+          companyName: ie.RAZAO_SOCIAL || "Não informado",
+          nomeFantasia: ie.NOME_FANTASIA || "",
+          situacao: ie.SITUACAO || "DESCONHECIDA",
+          dataAbertura: ie.DATA_FUNDACAO || "",
+          capitalSocial: parseBrCurrency(ie.CAPITAL_SOCIAL),
+          naturezaJuridica: ie.NATUREZA_JURIDICA || "",
+          atividadePrincipal: ie.RAMO_ATIVIDADE_PRIMARIO || ie.CNAE_PRIMARIO || "",
+          endereco: endObj.ENDERECO || "",
+          bairro: endObj.BAIRRO || "",
+          cidade: endObj.CIDADE || "",
+          uf: endObj.UF || "",
+          cep: endObj.CEP || "",
+          telefone: formatPhone(ie.TELEFONE || ""),
+          email: ie.EMAIL || "",
+          porte: ie.PORTE || "",
+          socios,
+          dataSource: "apifull",
+        };
+        console.info(`[APIFull Serasa] Dados cadastrais de CNPJ obtidos: ${ie.RAZAO_SOCIAL}`);
+      }
+    }
+
+    return { credit, cadastral };
+  } catch (error) {
+    console.warn("[APIFull Serasa] Erro na consulta:", error);
+    return null;
+  }
+}
+
 // ── Simulação (Fallback) ──
 
 function seededRandom(seed: number): () => number {
@@ -656,7 +849,10 @@ export class ApiUnavailableError extends Error {
   }
 }
 
-export async function runCreditAnalysis(doc: string): Promise<AnalysisResult> {
+export async function runCreditAnalysis(
+  doc: string, 
+  bureau: "boavista" | "serasa_premium" = "boavista"
+): Promise<AnalysisResult> {
   const cleaned = cleanDocument(doc);
   const docType = detectDocumentType(cleaned);
 
@@ -667,8 +863,10 @@ export async function runCreditAnalysis(doc: string): Promise<AnalysisResult> {
     );
   }
 
-  // 2. Buscar dados da API Full (crédito + cadastrais)
-  const apiFullResult = await fetchApiFullBoaVista(cleaned);
+  // 2. Buscar dados da API Full (crédito + cadastrais) - escolhe bureau
+  const apiFullResult = bureau === "serasa_premium" 
+    ? await fetchApiFullSerasaPremium(cleaned)
+    : await fetchApiFullBoaVista(cleaned);
 
   // 3. Dados de crédito — se API falhou, NÃO usar simulação, lançar erro
   let credit: CreditData;

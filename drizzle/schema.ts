@@ -86,6 +86,7 @@ export const creditAnalyses = mysqlTable("credit_analyses", {
   chequesSustados: int("chequesSustados").default(0),
   cadastralDataSource: varchar("cadastralDataSource", { length: 32 }),
   creditDataSource: varchar("creditDataSource", { length: 32 }),
+  bureau: varchar("bureau", { length: 32 }).default("boavista"), // boavista ou serasa_premium
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

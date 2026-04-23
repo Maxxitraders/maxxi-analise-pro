@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   Search,
@@ -64,11 +65,11 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function DataSourceBadge({ source }: { source: string }) {
-  const isReal = source === "brasilapi" || source === "apifull_boavista" || source === "apifull";
+  const isReal = source === "brasilapi" || source === "apifull_boavista" || source === "apifull_serasa_premium" || source === "apifull";
   return (
     <Badge variant="outline" className={`text-[10px] px-2 py-0 font-normal ${isReal ? "border-emerald-300 text-emerald-600" : "border-amber-300 text-amber-600"}`}>
       <Database className="h-2.5 w-2.5 mr-1" />
-      {source === "brasilapi" ? "Receita Federal" : source === "apifull_boavista" ? "Boa Vista SCPC" : source === "apifull" ? "Boa Vista" : "Simulado"}
+      {source === "brasilapi" ? "Receita Federal" : source === "apifull_boavista" ? "Boa Vista SCPC" : source === "apifull_serasa_premium" ? "Serasa Premium" : source === "apifull" ? "Boa Vista" : "Simulado"}
     </Badge>
   );
 }
@@ -97,6 +98,7 @@ function ScoreGauge({ score }: { score: number }) {
 
 export default function Consulta() {
   const [docInput, setDocInput] = useState("");
+  const [bureau, setBureau] = useState<"boavista" | "serasa_premium">("boavista");
   const [, setLocation] = useLocation();
 
   const { user } = useAuth();
@@ -179,9 +181,9 @@ export default function Consulta() {
         toast.error("CNPJ deve conter 14 dígitos.");
         return;
       }
-      analyzeMutation.mutate({ document: digits });
+      analyzeMutation.mutate({ document: digits, bureau });
     },
-    [digits, isCpf, analyzeMutation, hasNoSubscription, hasExhaustedCredits, sub, setLocation, isAdmin]
+    [digits, isCpf, bureau, analyzeMutation, hasNoSubscription, hasExhaustedCredits, sub, setLocation, isAdmin]
   );
 
   const result = analyzeMutation.data;
@@ -229,23 +231,49 @@ export default function Consulta() {
       {/* Search Card */}
       <Card className="border-0 shadow-sm">
         <CardContent className="p-6">
-          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={isCpf ? "000.000.000-00" : "00.000.000/0000-00"}
-                value={docInput}
-                onChange={handleDocChange}
-                className="pl-10 h-12 text-lg font-mono bg-background"
-                maxLength={18}
-                autoFocus
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="h-12 px-4 text-sm font-medium shrink-0">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            {/* Input do documento */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={isCpf ? "000.000.000-00" : "00.000.000/0000-00"}
+                  value={docInput}
+                  onChange={handleDocChange}
+                  className="pl-10 h-12 text-lg font-mono bg-background"
+                  maxLength={18}
+                  autoFocus
+                />
+              </div>
+              <Badge variant="outline" className="h-12 px-4 text-sm font-medium shrink-0 flex items-center justify-center">
                 {isCpf ? <User className="h-4 w-4 mr-1.5" /> : <Building2 className="h-4 w-4 mr-1.5" />}
                 {docLabel}
               </Badge>
+            </div>
+
+            {/* Select de Bureau + Botão */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
+                <Select value={bureau} onValueChange={(v) => setBureau(v as "boavista" | "serasa_premium")}>
+                  <SelectTrigger className="h-12 bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="boavista">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">Boa Vista</span>
+                        <span className="text-muted-foreground text-sm">(R$ 6,50)</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="serasa_premium">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">Serasa Premium</span>
+                        <span className="text-muted-foreground text-sm">(R$ 15,00)</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button
                 type="submit"
                 size="lg"

@@ -46,11 +46,11 @@ function StatusBadge({ status }: { status: string }) {
 
 function DataSourceBadge({ source }: { source: string | null | undefined }) {
   if (!source) return null;
-  const isReal = source === "brasilapi" || source === "apifull_boavista";
+  const isReal = source === "brasilapi" || source === "apifull_boavista" || source === "apifull_serasa_premium";
   return (
     <Badge variant="outline" className={`text-[10px] px-2 py-0 font-normal ${isReal ? "border-emerald-300 text-emerald-600" : "border-amber-300 text-amber-600"}`}>
       <Database className="h-2.5 w-2.5 mr-1" />
-      {source === "brasilapi" ? "Receita Federal" : source === "apifull_boavista" ? "Boa Vista SCPC" : "Simulado"}
+      {source === "brasilapi" ? "Receita Federal" : source === "apifull_boavista" ? "Boa Vista SCPC" : source === "apifull_serasa_premium" ? "Serasa Premium" : "Simulado"}
     </Badge>
   );
 }
