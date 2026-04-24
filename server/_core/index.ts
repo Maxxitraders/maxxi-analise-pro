@@ -11,6 +11,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import { webhookLimiter } from "../rateLimiting";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -80,7 +81,7 @@ async function startServer() {
   app.use(express.json({ limit: "5mb" }));
   app.use(express.urlencoded({ limit: "5mb", extended: true }));
   // Asaas webhook (after express.json)
-  app.post("/api/asaas/webhook", handleAsaasWebhook);
+  app.post("/api/asaas/webhook", webhookLimiter, handleAsaasWebhook);
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
   // tRPC API

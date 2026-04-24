@@ -780,11 +780,12 @@ export const appRouter = router({
           });
         }
 
-        // NOVO: Verificar saldo ANTES de tudo
+        // Verificar saldo ANTES de tudo (UX — a proteção real está na transação atômica)
         const custoConsulta = input.bureau === "serasa_premium" ? 15.00 : 6.50;
-        const { getUserSaldo, debitSaldoFromUser, addSaldoToUser, insertTransaction } = await import("./db");
+        const { getUserSaldo } = await import("./db");
+        const { consultarCreditoComTransacao } = await import("./db-atomic");
         const saldoAtual = await getUserSaldo(ctx.user.id);
-        
+
         if (saldoAtual < custoConsulta) {
           throw new TRPCError({
             code: "PRECONDITION_FAILED",
@@ -792,34 +793,18 @@ export const appRouter = router({
           });
         }
 
-        // Debitar saldo ANTES da consulta
-        await debitSaldoFromUser(ctx.user.id, custoConsulta);
-        
-        // Registrar transação de débito
-        await insertTransaction({
-          userId: ctx.user.id,
-          tipo: "consulta",
-          valor: String(-custoConsulta),
-          descricao: `Consulta ${input.bureau === "serasa_premium" ? "Serasa Premium" : "Boa Vista"} - ${cleaned}`,
-          bureauTipo: input.bureau,
-          asaasPaymentId: null,
-        });
-
+        // Débito + consulta + estorno em bloco atômico com FOR UPDATE
+        const bureauParaAtomic = input.bureau === "serasa_premium" ? "serasa_premium" : "boa_vista";
         let result;
         try {
-          result = await runCreditAnalysis(cleaned, input.bureau);
+          result = await consultarCreditoComTransacao(
+            ctx.user.id,
+            cleaned,
+            bureauParaAtomic,
+            custoConsulta,
+            () => runCreditAnalysis(cleaned, input.bureau)
+          );
         } catch (err: any) {
-          // SE FALHAR: estornar o saldo
-          await addSaldoToUser(ctx.user.id, custoConsulta);
-          await insertTransaction({
-            userId: ctx.user.id,
-            tipo: "estorno",
-            valor: String(custoConsulta),
-            descricao: `Estorno - falha na consulta ${input.bureau}`,
-            bureauTipo: input.bureau,
-            asaasPaymentId: null,
-          });
-          
           if (err instanceof ApiUnavailableError) {
             throw new TRPCError({
               code: "SERVICE_UNAVAILABLE",

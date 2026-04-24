@@ -56,21 +56,16 @@ export async function handleAsaasWebhook(req: Request, res: Response) {
       
       console.log(`[Asaas Webhook] Recarga de saldo detectada! User: ${userId}, Valor: R$ ${payment.value}`);
       
-      const { addSaldoToUser, insertTransaction } = await import("./db");
-      
-      // Adicionar saldo ao usuário
-      await addSaldoToUser(userId, payment.value);
-      
-      // Registrar transação de crédito
-      await insertTransaction({
+      const { creditSaldoAtomic } = await import("./db-atomic");
+
+      // Creditar saldo em transação atômica (UPDATE + INSERT em bloco)
+      await creditSaldoAtomic(
         userId,
-        tipo: "recarga",
-        valor: String(payment.value),
-        descricao: `Recarga via ${payment.billingType}`,
-        bureauTipo: null,
-        asaasPaymentId: payment.id,
-      });
-      
+        payment.value,
+        `Recarga via ${payment.billingType}`,
+        payment.id
+      );
+
       console.log(`[Asaas Webhook] Saldo creditado! User: ${userId}, Valor: R$ ${payment.value}`);
       
       // Enviar email confirmando recarga
