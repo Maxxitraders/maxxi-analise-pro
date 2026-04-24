@@ -289,7 +289,7 @@ export const appRouter = router({
 
     mySubscription: protectedProcedure.query(async ({ ctx }) => {
       const user = await getUserById(ctx.user.id);
-      if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "Usu\u00e1rio n\u00e3o encontrado." });
+      if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado." });
 
       const plan = await getPlanBySlug(user.planId || "none");
 
@@ -304,7 +304,7 @@ export const appRouter = router({
       };
     }),
 
-    // Criar cobran\u00e7a via Asaas (PIX, boleto ou cart\u00e3o)
+    // Criar cobrança via Asaas (PIX, boleto ou cartão)
     createAsaasCheckout: protectedProcedure
       .input(z.object({
         planSlug: z.string(),
@@ -353,21 +353,21 @@ export const appRouter = router({
           await updateUserAsaasCustomerId(ctx.user.id, asaasCustomerId);
         }
 
-        // Calcular data de vencimento (amanh\u00e3)
+        // Calcular data de vencimento (amanhã)
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + 1);
         const dueDateStr = dueDate.toISOString().split("T")[0];
 
-        // Valor em reais (monthlyPrice est\u00e1 em centavos)
+        // Valor em reais (monthlyPrice está em centavos)
         const valueInReais = plan.monthlyPrice / 100;
 
-        // Criar cobran\u00e7a
+        // Criar cobrança
         const payment = await createAsaasPayment({
           customerId: asaasCustomerId,
           billingType: input.billingType as BillingType,
           value: valueInReais,
           dueDate: dueDateStr,
-          description: `Plano ${plan.name} - Maxxi An\u00e1lise Pro`,
+          description: `Plano ${plan.name} - Maxxi Análise Pro`,
           externalReference: `${ctx.user.id}:${plan.id}`,
         });
 
@@ -974,17 +974,53 @@ export const appRouter = router({
         metodoPagamento: z.enum(["PIX", "CREDIT_CARD", "BOLETO"])
       }))
       .mutation(async ({ ctx, input }) => {
-        // Cria cobrança no Asaas
+        // Buscar usuário completo do banco
+        const user = await getUserById(ctx.user.id);
+        if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado." });
+
+        // Se não tiver asaasCustomerId, criar um novo customer
+        let asaasCustomerId = user.asaasCustomerId;
+        if (!asaasCustomerId) {
+          // Criar customer no Asaas
+          asaasCustomerId = await ensureAsaasCustomer({
+            name: user.name || "Cliente",
+            email: user.email || "",
+            cpfCnpj: user.cpfCnpj || "",
+          });
+          
+          // Salvar no banco de dados
+          await updateUserAsaasCustomerId(ctx.user.id, asaasCustomerId);
+        }
+
+        // Criar cobrança no Asaas
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 1);
+        const dueDateStr = dueDate.toISOString().split("T")[0];
+
         const payment = await createAsaasPayment({
-          customer: ctx.user.asaasCustomerId!,
-          value: input.valor,
+          customerId: asaasCustomerId,
           billingType: input.metodoPagamento as BillingType,
+          value: input.valor,
+          dueDate: dueDateStr,
           description: `Recarga de créditos - Maxxi Analise`,
         });
 
+        // Se for PIX, obter QR Code
+        let pixData = null;
+        if (input.metodoPagamento === "PIX") {
+          try {
+            pixData = await getPixQrCode(payment.id);
+          } catch (e) {
+            console.error("[Asaas] Erro ao obter QR Code PIX:", e);
+          }
+        }
+
         return { 
-          paymentUrl: payment.invoiceUrl, 
-          paymentId: payment.id 
+          paymentUrl: payment.invoiceUrl,
+          bankSlipUrl: payment.bankSlipUrl,
+          paymentId: payment.id,
+          status: payment.status,
+          pixData,
         };
       }),
   }),
