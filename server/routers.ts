@@ -1003,7 +1003,7 @@ export const appRouter = router({
           value: input.valor,
           dueDate: dueDateStr,
           description: `Recarga de créditos - Maxxi Analise`,
-        });
+        externalReference: `recarga:${ctx.user.id}`,});
 
         // Se for PIX, obter QR Code
         let pixData = null;
