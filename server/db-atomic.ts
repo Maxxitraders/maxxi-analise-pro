@@ -19,7 +19,7 @@ export async function debitSaldoAtomic(
     const result = await tx.execute(sql`
       SELECT id, saldo FROM users WHERE id = ${userId} FOR UPDATE
     `);
-    const user = (result[0] as any[])[0];
+    const user = (result[0] as unknown as any[])[0];
 
     if (!user) throw new Error('Usuário não encontrado');
     if (Number(user.saldo) < valor) throw new Error('Saldo insuficiente');

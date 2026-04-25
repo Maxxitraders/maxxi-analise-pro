@@ -55,21 +55,13 @@ export const idSchema = z.number()
   .positive('ID deve ser positivo');
 
 export const bureauTipoSchema = z.enum(
-  ['boa_vista', 'serasa_premium'],
-  {
-    errorMap: () => ({
-      message: 'Tipo de bureau inválido. Use: boa_vista ou serasa_premium'
-    })
-  }
+  ['boa_vista', 'serasa_premium'] as const,
+  { message: 'Tipo de bureau inválido. Use: boa_vista ou serasa_premium' }
 );
 
 export const metodoPagamentoSchema = z.enum(
-  ['PIX', 'CREDIT_CARD', 'BOLETO'],
-  {
-    errorMap: () => ({
-      message: 'Método de pagamento inválido. Use: PIX, CREDIT_CARD ou BOLETO'
-    })
-  }
+  ['PIX', 'CREDIT_CARD', 'BOLETO'] as const,
+  { message: 'Método de pagamento inválido. Use: PIX, CREDIT_CARD ou BOLETO' }
 );
 
 export const textoLivreSchema = (maxLength: number = 1000) =>

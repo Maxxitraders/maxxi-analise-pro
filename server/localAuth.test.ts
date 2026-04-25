@@ -151,7 +151,7 @@ describe("auth.requestPasswordReset", () => {
 
     const result = await caller.auth.requestPasswordReset({
       email: "naoexiste@example.com",
-      origin: "https://maxxianalise.com",
+      origin: "https://app.maxxianalise.com",
     });
 
     expect(result.success).toBe(true);
@@ -164,7 +164,7 @@ describe("auth.requestPasswordReset", () => {
 
     const result = await caller.auth.requestPasswordReset({
       email: testEmail,
-      origin: "https://maxxianalise.com",
+      origin: "https://app.maxxianalise.com",
     });
 
     expect(result.success).toBe(true);

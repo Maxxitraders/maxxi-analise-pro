@@ -185,6 +185,7 @@ export default defineConfig({
       ".manusvm.computer",
       "maxxianalise.com",
       "www.maxxianalise.com",
+      "app.maxxianalise.com",
       ".railway.app",
       ".up.railway.app",
       "localhost",
