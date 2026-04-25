@@ -11,6 +11,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import { globalLimiter, webhookLimiter } from "../rateLimiting";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -42,15 +43,6 @@ async function startServer() {
   }));
 
   // ── Rate Limiting ──
-  // General API limit: 200 requests per 15 min per IP
-  const generalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 200,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Muitas requisições. Tente novamente em alguns minutos." },
-  });
-
   // Auth endpoints: 10 attempts per 15 min per IP (brute force protection)
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -69,7 +61,7 @@ async function startServer() {
     message: { error: "Muitas solicitações de recuperação de senha. Tente novamente em 1 hora." },
   });
 
-  app.use("/api/trpc", generalLimiter);
+  app.use("/api/trpc", globalLimiter);
   app.use("/api/trpc/auth.login", authLimiter);
   app.use("/api/trpc/auth.register", authLimiter);
   app.use("/api/trpc/auth.requestPasswordReset", resetLimiter);
@@ -80,7 +72,7 @@ async function startServer() {
   app.use(express.json({ limit: "5mb" }));
   app.use(express.urlencoded({ limit: "5mb", extended: true }));
   // Asaas webhook (after express.json)
-  app.post("/api/asaas/webhook", handleAsaasWebhook);
+  app.post("/api/asaas/webhook", webhookLimiter, handleAsaasWebhook);
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
   // tRPC API

@@ -56,47 +56,20 @@ export async function handleAsaasWebhook(req: Request, res: Response) {
       
       console.log(`[Asaas Webhook] Recarga de saldo detectada! User: ${userId}, Valor: R$ ${payment.value}`);
       
-      const { addSaldoToUser, insertTransaction } = await import("./db");
-      
-      // Adicionar saldo ao usuário
-      await addSaldoToUser(userId, payment.value);
-      
-      // Registrar transação de crédito
-      await insertTransaction({
+      const { creditSaldoAtomic } = await import("./db-atomic");
+
+      // Creditar saldo em transação atômica (UPDATE + INSERT em bloco)
+      await creditSaldoAtomic(
         userId,
-        tipo: "recarga",
-        valor: String(payment.value),
-        descricao: `Recarga via ${payment.billingType}`,
-        bureauTipo: null,
-        asaasPaymentId: payment.id,
-      });
-      
+        payment.value,
+        `Recarga via ${payment.billingType}`,
+        payment.id
+      );
+
       console.log(`[Asaas Webhook] Saldo creditado! User: ${userId}, Valor: R$ ${payment.value}`);
       
-      // Enviar email confirmando recarga
-      try {
-        const user = await getUserById(userId);
-        if (user?.email) {
-          const { sendEmail } = await import("./email");
-          await sendEmail({
-            to: user.email,
-            subject: "Saldo adicionado com sucesso! 💰",
-            html: `
-              <h2>Olá ${user.name || ""}!</h2>
-              <p>Seu saldo foi creditado com sucesso:</p>
-              <p style="font-size: 24px; font-weight: bold; color: #2563eb;">
-                + R$ ${payment.value.toFixed(2)}
-              </p>
-              <p>Você já pode usar seus créditos para fazer consultas no Maxxi Analise Pro.</p>
-              <p>Método de pagamento: ${payment.billingType === "PIX" ? "PIX" : payment.billingType === "CREDIT_CARD" ? "Cartão de Crédito" : "Boleto"}</p>
-            `,
-          });
-          console.log(`[Asaas Webhook] Email de recarga enviado para: ${user.email}`);
-        }
-      } catch (emailError) {
-        console.error("[Asaas Webhook] Falha ao enviar email de recarga:", emailError);
-      }
-      
+      // TODO: adicionar sendRechargeEmail() em email.ts para notificar recarga de saldo
+
       return res.json({ received: true });
     }
 

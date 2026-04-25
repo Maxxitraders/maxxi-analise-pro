@@ -1,4 +1,22 @@
 import { COOKIE_NAME } from "@shared/const";
+
+const ALLOWED_ORIGINS = [
+  "https://app.maxxianalise.com",
+  "https://maxxianalise.com",
+  "https://www.maxxianalise.com",
+  ...(process.env.APP_URL ? [process.env.APP_URL] : []),
+];
+
+function isOriginAllowed(origin: string): boolean {
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  // Railway preview deployments
+  if (/^https:\/\/[a-z0-9-]+\.up\.railway\.app$/.test(origin)) return true;
+  // Localhost apenas em desenvolvimento
+  if (process.env.NODE_ENV !== "production") {
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
+  }
+  return false;
+}
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
@@ -26,6 +44,7 @@ import {
   resetUserConsultas,
   addBonusConsultas,
   setUserPlan,
+  getUserSaldo,
 } from "./db";
 import {
   runCreditAnalysis,
@@ -62,6 +81,9 @@ import {
   getUserByEmail,
 } from "./localAuth";
 import { sendPasswordResetEmail, sendWelcomeEmail, sendPaymentConfirmationEmail, isEmailConfigured } from "./email";
+import { cpfCnpjSchema, idSchema } from './validation';
+import { consultarCreditoComTransacao } from './db-atomic';
+import { requireOwnership } from './middleware/ownership';
 import {
   ensureAsaasCustomer,
   createAsaasPayment,
@@ -226,7 +248,9 @@ export const appRouter = router({
     requestPasswordReset: publicProcedure
       .input(z.object({
         email: z.string().email("Email inválido"),
-        origin: z.string(), // URL base do frontend
+        origin: z.string().url("Origin inválido").refine(isOriginAllowed, {
+          message: "Origin não autorizado para geração de link de reset.",
+        }),
       }))
       .mutation(async ({ input }) => {
         // Se Resend não estiver configurado, avisar imediatamente (não silenciar)
@@ -780,11 +804,10 @@ export const appRouter = router({
           });
         }
 
-        // NOVO: Verificar saldo ANTES de tudo
+        // Verificar saldo ANTES de tudo (UX — a proteção real está na transação atômica)
         const custoConsulta = input.bureau === "serasa_premium" ? 15.00 : 6.50;
-        const { getUserSaldo, debitSaldoFromUser, addSaldoToUser, insertTransaction } = await import("./db");
         const saldoAtual = await getUserSaldo(ctx.user.id);
-        
+
         if (saldoAtual < custoConsulta) {
           throw new TRPCError({
             code: "PRECONDITION_FAILED",
@@ -792,34 +815,18 @@ export const appRouter = router({
           });
         }
 
-        // Debitar saldo ANTES da consulta
-        await debitSaldoFromUser(ctx.user.id, custoConsulta);
-        
-        // Registrar transação de débito
-        await insertTransaction({
-          userId: ctx.user.id,
-          tipo: "consulta",
-          valor: String(-custoConsulta),
-          descricao: `Consulta ${input.bureau === "serasa_premium" ? "Serasa Premium" : "Boa Vista"} - ${cleaned}`,
-          bureauTipo: input.bureau,
-          asaasPaymentId: null,
-        });
-
+        // Débito + consulta + estorno em bloco atômico com FOR UPDATE
+        const bureauParaAtomic = input.bureau === "serasa_premium" ? "serasa_premium" : "boa_vista";
         let result;
         try {
-          result = await runCreditAnalysis(cleaned, input.bureau);
+          result = await consultarCreditoComTransacao(
+            ctx.user.id,
+            cleaned,
+            bureauParaAtomic,
+            custoConsulta,
+            () => runCreditAnalysis(cleaned, input.bureau)
+          );
         } catch (err: any) {
-          // SE FALHAR: estornar o saldo
-          await addSaldoToUser(ctx.user.id, custoConsulta);
-          await insertTransaction({
-            userId: ctx.user.id,
-            tipo: "estorno",
-            valor: String(custoConsulta),
-            descricao: `Estorno - falha na consulta ${input.bureau}`,
-            bureauTipo: input.bureau,
-            asaasPaymentId: null,
-          });
-          
           if (err instanceof ApiUnavailableError) {
             throw new TRPCError({
               code: "SERVICE_UNAVAILABLE",
@@ -891,13 +898,13 @@ export const appRouter = router({
       }),
 
     getById: protectedProcedure
-      .input(z.object({ id: z.number() }))
+      .input(z.object({ id: idSchema }))
       .query(async ({ ctx, input }) => {
         const analysis = await getCreditAnalysisById(input.id);
-        if (!analysis) throw new TRPCError({ code: "NOT_FOUND", message: "Análise não encontrada." });
-        // Usuários normais só podem ver suas próprias análises
-        if (ctx.user.role !== "admin" && analysis.userId !== ctx.user.id) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para ver esta análise." });
+        if (ctx.user.role !== "admin") {
+          await requireOwnership(analysis, ctx.user.id, 'Análise');
+        } else if (!analysis) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Análise não encontrada." });
         }
         return analysis;
       }),

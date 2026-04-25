@@ -361,7 +361,7 @@ export async function insertTransaction(transaction: InsertTransaction): Promise
 export async function listTransactions(userId: number, limit: number = 20, offset: number = 0): Promise<Transaction[]> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   return await db.select()
     .from(transactions)
     .where(eq(transactions.userId, userId))
@@ -369,3 +369,6 @@ export async function listTransactions(userId: number, limit: number = 20, offse
     .limit(limit)
     .offset(offset);
 }
+
+// Funções atômicas de segurança (race condition prevention)
+export { debitSaldoAtomic, creditSaldoAtomic, estornarSaldoAtomic, consultarCreditoComTransacao } from './db-atomic';

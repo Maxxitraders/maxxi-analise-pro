@@ -120,7 +120,7 @@ export async function sendWelcomeEmail(params: {
               Para começar, escolha um plano de assinatura que atenda às suas necessidades.
             </p>
             <div style="text-align: center;">
-              <a href="https://maxxianalise.com/planos" 
+              <a href="https://app.maxxianalise.com/planos"
                  style="display: inline-block; background: #1a1a2e; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 15px; font-weight: 600;">
                 Ver Planos
               </a>
@@ -210,7 +210,7 @@ export async function sendPaymentConfirmationEmail(params: {
               Seu pagamento foi confirmado e o <strong>Plano ${planName}</strong> já está ativo na sua conta. Você pode fazer <strong>${limitText}</strong> consultas.
             </p>
             <div style="text-align: center; margin: 24px 0;">
-              <a href="https://maxxianalise.com/consulta"
+              <a href="https://app.maxxianalise.com/consulta"
                  style="display: inline-block; background: #1a1a2e; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 15px; font-weight: 600;">
                 Começar a Usar
               </a>
