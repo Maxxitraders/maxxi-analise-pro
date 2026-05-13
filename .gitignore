@@ -4,3 +4,6 @@ dist/
 .env.local
 .manus/
 *.log
+# Logs do Winston
+logs/
+*.log
