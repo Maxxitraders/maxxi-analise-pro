@@ -94,13 +94,15 @@ import {
   type BillingType,
 } from "./asaas";
 
-// Helper: check if user has active subscription or is admin
-function checkSubscriptionAccess(user: any) {
+// Helper: check if user has sufficient balance or is admin
+function checkBalance(user: any, requiredAmount: number) {
   if (user.role === "admin") return; // Admin has unlimited access
-  if (user.subscriptionStatus !== "active") {
+  
+  const balance = user.saldo || 0;
+  if (balance < requiredAmount) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "Você precisa de uma assinatura ativa para realizar consultas. Acesse a página de Planos para assinar.",
+      message: `Saldo insuficiente. Você tem R$ ${balance.toFixed(2)} e precisa de R$ ${requiredAmount.toFixed(2)}. Faltam R$ ${(requiredAmount - balance).toFixed(2)}.`
     });
   }
 }
@@ -108,7 +110,14 @@ function checkSubscriptionAccess(user: any) {
 // Helper: check consultas limit
 async function checkConsultasLimit(user: any) {
   if (user.role === "admin") return; // Admin has unlimited access
-  const plan = await getPlanBySlug(user.planId || "none");
+  const plan = await getPlanBySlug(user.planId || "none");// Verificar saldo primeiro
+  const balance = user.saldo || 0;
+  if (balance <= 0) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Saldo insuficiente. Adicione créditos para realizar consultas."
+    });
+  }
   if (!plan) {
     throw new TRPCError({
       code: "FORBIDDEN",
