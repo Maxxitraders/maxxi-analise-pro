@@ -107,3 +107,24 @@ export const transactions = mysqlTable("transactions", {
 
 export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = typeof transactions.$inferInsert;
+
+export const margemConsultations = mysqlTable("margem_consultations", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  cpf: varchar("cpf", { length: 14 }).notNull(),
+  nomeCompleto: varchar("nomeCompleto", { length: 255 }),
+  dataNascimento: varchar("dataNascimento", { length: 16 }),
+  margemDisponivel: decimal("margemDisponivel", { precision: 10, scale: 2 }),
+  margemUtilizada: decimal("margemUtilizada", { precision: 10, scale: 2 }),
+  margemTotal: decimal("margemTotal", { precision: 10, scale: 2 }),
+  margemCartaoDisponivel: decimal("margemCartaoDisponivel", { precision: 10, scale: 2 }),
+  margemCartaoUtilizada: decimal("margemCartaoUtilizada", { precision: 10, scale: 2 }),
+  orgao: varchar("orgao", { length: 255 }),
+  competencia: varchar("competencia", { length: 16 }),
+  status: varchar("status", { length: 32 }).notNull(),
+  rawResponse: text("rawResponse"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type MargemConsultation = typeof margemConsultations.$inferSelect;
+export type InsertMargemConsultation = typeof margemConsultations.$inferInsert;

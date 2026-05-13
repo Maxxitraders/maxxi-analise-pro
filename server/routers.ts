@@ -53,6 +53,8 @@ import {
   detectDocumentType,
   isHighRisk,
   ApiUnavailableError,
+  consultarMargemConsignavel,
+  validateCpf,
 } from "./creditEngine";
 import { notifyOwner } from "./_core/notification";
 import {
@@ -987,7 +989,7 @@ export const appRouter = router({
     adicionarSaldo: protectedProcedure
       .input(z.object({
         valor: z.number().min(5).max(1000),
-        metodoPagamento: z.enum(["PIX", "CREDIT_CARD", "BOLETO"])
+        metodoPagamento: z.enum(["PIX", "CREDIT_CARD", "BOLETO"]),
       }))
       .mutation(async ({ ctx, input }) => {
         // Buscar usuário completo do banco
@@ -1038,6 +1040,89 @@ export const appRouter = router({
           status: payment.status,
           pixData,
         };
+      }),
+  }),
+
+  // ── Margem Consignável ──
+  margem: router({
+    consultar: protectedProcedure
+      .input(z.object({ cpf: z.string().min(11).max(14) }))
+      .mutation(async ({ ctx, input }) => {
+        const { debitSaldoAtomic } = await import("./db-atomic");
+        const { getDb } = await import("./db");
+        const { margemConsultations } = await import("../drizzle/schema");
+
+        const CUSTO = 3.00;
+
+        const user = await getUserById(ctx.user.id);
+        if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado." });
+
+        const cleaned = input.cpf.replace(/\D/g, "");
+        if (!validateCpf(cleaned)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "CPF inválido." });
+        }
+
+        // Débita saldo atomicamente (lança FORBIDDEN se saldo insuficiente)
+        await debitSaldoAtomic(
+          ctx.user.id,
+          CUSTO,
+          `Consulta de margem consignável - CPF ${cleaned.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}`,
+          null
+        );
+
+        let resultado;
+        try {
+          resultado = await consultarMargemConsignavel(cleaned);
+        } catch (err) {
+          // Estornar saldo em caso de falha na API
+          const { estornarSaldoAtomic } = await import("./db-atomic");
+          await estornarSaldoAtomic(ctx.user.id, CUSTO, "Estorno: falha na consulta de margem consignável");
+          throw err instanceof TRPCError ? err : new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: err instanceof Error ? err.message : "Erro ao consultar margem consignável.",
+          });
+        }
+
+        // Persistir no banco
+        const db = await getDb();
+        if (db) {
+          await db.insert(margemConsultations).values({
+            userId: ctx.user.id,
+            cpf: cleaned,
+            nomeCompleto: resultado.nomeCompleto ?? undefined,
+            dataNascimento: resultado.dataNascimento ?? undefined,
+            margemDisponivel: String(resultado.margemDisponivel),
+            margemUtilizada: String(resultado.margemUtilizada),
+            margemTotal: String(resultado.margemTotal),
+            margemCartaoDisponivel: String(resultado.margemCartaoDisponivel),
+            margemCartaoUtilizada: String(resultado.margemCartaoUtilizada),
+            orgao: resultado.orgao ?? undefined,
+            competencia: resultado.competencia ?? undefined,
+            status: resultado.dataSource === "simulado" ? "simulado" : "consultado",
+            rawResponse: null,
+          });
+        }
+
+        return resultado;
+      }),
+
+    historico: protectedProcedure
+      .input(z.object({ limit: z.number().default(20), offset: z.number().default(0) }))
+      .query(async ({ ctx, input }) => {
+        const { getDb } = await import("./db");
+        const { margemConsultations } = await import("../drizzle/schema");
+        const { desc, eq } = await import("drizzle-orm");
+
+        const db = await getDb();
+        if (!db) return [];
+
+        return db
+          .select()
+          .from(margemConsultations)
+          .where(eq(margemConsultations.userId, ctx.user.id))
+          .orderBy(desc(margemConsultations.createdAt))
+          .limit(input.limit)
+          .offset(input.offset);
       }),
   }),
 });

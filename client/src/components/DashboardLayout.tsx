@@ -23,7 +23,7 @@ import {
 // getLoginUrl mantido para admin Manus OAuth
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, Search, History, LogOut, PanelLeft, ShieldCheck, CreditCard, Crown, Settings, UserCircle, Wallet } from "lucide-react";
+import { LayoutDashboard, Search, History, LogOut, PanelLeft, ShieldCheck, CreditCard, Crown, Settings, UserCircle, Wallet, TrendingUp } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
@@ -33,6 +33,7 @@ import { Separator } from "./ui/separator";
 const mainMenuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Search, label: "Nova Consulta", path: "/consulta" },
+  { icon: TrendingUp, label: "Margem Consignável", path: "/consulta-margem" },
   { icon: History, label: "Histórico", path: "/historico" },
 ];
 

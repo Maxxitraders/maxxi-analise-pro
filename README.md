@@ -40,6 +40,7 @@ O **Maxxi Analise Pro** é uma plataforma SaaS que permite análise de crédito 
 - 🔍 **Análise de Crédito** (CPF/CNPJ)
 - 📊 **Dashboard** com estatísticas
 - 📝 **Histórico** de consultas
+- 💹 **Consulta de Margem Consignável** (CPF, R$ 3,00/consulta, API Full)
 - 👥 **Gerenciamento de Usuários** (admin)
 - 💰 **Integração com Asaas** (pagamentos)
 - 📧 **Notificações por Email** (Resend)
@@ -374,9 +375,10 @@ PORT=3000
 
 ```
 server/
-├── creditEngine.test.ts    # Testes motor de crédito (28 testes)
-├── routers.test.ts         # Testes tRPC routers
-└── db-atomic.test.ts       # Testes operações DB
+├── creditEngine.test.ts       # Testes motor de crédito (28 testes)
+├── margemConsignavel.test.ts  # Testes consulta de margem consignável
+├── routers.test.ts            # Testes tRPC routers
+└── db-atomic.test.ts          # Testes operações DB
 ```
 
 ### Rodar Testes:
@@ -515,6 +517,7 @@ npm run test
 ### Próximas Features:
 
 - [x] CSRF Protection (Double Submit Cookie + HMAC)
+- [x] Consulta de Margem Consignável (R$ 3,00/consulta)
 - [ ] Audit Logging
 - [ ] Cache Redis
 - [ ] 2FA para admins

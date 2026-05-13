@@ -179,6 +179,8 @@ function formatPhone(raw: string): string {
 
 function parseBrCurrency(val: string | number | undefined | null): number {
   if (val === undefined || val === null || val === "") return 0;
+  if (typeof val === "number") return val;
+  // BR format: "1.200,50" → dots are thousands separators, comma is decimal
   const str = String(val).replace(/\./g, "").replace(",", ".");
   return parseFloat(str) || 0;
 }
@@ -921,4 +923,88 @@ export function isHighRisk(result: AnalysisResult): boolean {
     result.credit.score < 200 ||
     result.credit.valorDivida > 50000
   );
+}
+
+// ── Margem Consignável ──
+
+export interface MargemConsignavelResult {
+  cpf: string;
+  nomeCompleto: string | null;
+  dataNascimento: string | null;
+  margemDisponivel: number;
+  margemUtilizada: number;
+  margemTotal: number;
+  margemCartaoDisponivel: number;
+  margemCartaoUtilizada: number;
+  orgao: string | null;
+  competencia: string | null;
+  dataSource: "apifull" | "simulado";
+}
+
+export async function consultarMargemConsignavel(cpf: string): Promise<MargemConsignavelResult> {
+  const cleaned = cleanDocument(cpf);
+  if (cleaned.length !== 11) {
+    throw new Error("CPF inválido para consulta de margem consignável.");
+  }
+
+  const token = ENV.apiFullToken;
+
+  if (!token) {
+    // Dados simulados para desenvolvimento
+    return {
+      cpf: formatCpf(cleaned),
+      nomeCompleto: "NOME SIMULADO DA SILVA",
+      dataNascimento: "01/01/1975",
+      margemDisponivel: 850.00,
+      margemUtilizada: 650.00,
+      margemTotal: 1500.00,
+      margemCartaoDisponivel: 200.00,
+      margemCartaoUtilizada: 100.00,
+      orgao: "INSS - Instituto Nacional do Seguro Social",
+      competencia: new Date().toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }),
+      dataSource: "simulado",
+    };
+  }
+
+  try {
+    const response = await fetch("https://api.apifull.com.br/api/margem-consignavel", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "*/*",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ document: cleaned, link: "margem-consignavel" }),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!response.ok) {
+      throw new ApiUnavailableError(
+        `API de margem consignável retornou HTTP ${response.status}. Tente novamente.`
+      );
+    }
+
+    const data = await response.json();
+    const d = data?.dados ?? data;
+
+    return {
+      cpf: formatCpf(cleaned),
+      nomeCompleto: d?.nome ?? d?.nomeCompleto ?? null,
+      dataNascimento: d?.dataNascimento ?? d?.data_nascimento ?? null,
+      margemDisponivel: parseBrCurrency(d?.margemDisponivel ?? d?.margem_disponivel ?? 0),
+      margemUtilizada: parseBrCurrency(d?.margemUtilizada ?? d?.margem_utilizada ?? 0),
+      margemTotal: parseBrCurrency(d?.margemTotal ?? d?.margem_total ?? 0),
+      margemCartaoDisponivel: parseBrCurrency(d?.margemCartaoDisponivel ?? d?.margem_cartao_disponivel ?? 0),
+      margemCartaoUtilizada: parseBrCurrency(d?.margemCartaoUtilizada ?? d?.margem_cartao_utilizada ?? 0),
+      orgao: d?.orgao ?? d?.beneficio?.orgao ?? null,
+      competencia: d?.competencia ?? null,
+      dataSource: "apifull",
+    };
+  } catch (err) {
+    if (err instanceof ApiUnavailableError) throw err;
+    console.error("[CreditEngine] Erro ao consultar margem consignável:", err);
+    throw new ApiUnavailableError(
+      "Não foi possível consultar a margem consignável no momento. Tente novamente."
+    );
+  }
 }

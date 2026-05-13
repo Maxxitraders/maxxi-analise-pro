@@ -59,6 +59,41 @@
 
 ---
 
+### 💹 Consulta de Margem Consignável
+
+**Função de consulta à API Full:**
+```
+📂 server/creditEngine.ts
+   └─ função: consultarMargemConsignavel()
+```
+
+**Testes:**
+```
+📂 server/margemConsignavel.test.ts
+```
+
+**Rotas tRPC:**
+```
+📂 server/routers.ts
+   └─ rota: margem.consultar (mutation, R$ 3,00)
+   └─ rota: margem.historico (query)
+```
+
+**Interface (tela):**
+```
+📂 client/src/pages/ConsultaMargemConsignavel.tsx
+   └─ rota: /consulta-margem
+```
+
+**Tabela no banco:**
+```
+📂 drizzle/schema.ts
+   └─ tabela: margemConsultations
+📂 drizzle/0009_add_margem_consultations.sql
+```
+
+---
+
 ### 👤 Autenticação / Usuários
 
 **Login:**
