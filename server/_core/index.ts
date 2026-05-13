@@ -10,6 +10,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import helmet from "helmet";
+import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { globalLimiter, webhookLimiter } from "../rateLimiting";
 
@@ -40,6 +41,14 @@ async function startServer() {
   app.use(helmet({
     contentSecurityPolicy: false, // Disabled to allow Vite/React in dev
     crossOriginEmbedderPolicy: false,
+  }));// ── CORS Configuration ──
+  app.use(cors({
+    origin: process.env.NODE_ENV === 'production' 
+      ? ['https://app.maxxianalise.com', 'https://maxxi-analise-pro-production.up.railway.app']
+      : ['http://localhost:5173', 'http://localhost:3000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
   }));
 
   // ── Rate Limiting ──
