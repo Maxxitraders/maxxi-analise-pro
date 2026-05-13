@@ -1,5 +1,6 @@
 import { initSentry, Sentry } from "./lib/sentry";
 initSentry();
+import { fetchCsrfToken, invalidateCsrfToken } from "./hooks/useCsrfToken";
 import { trpc } from "@/lib/trpc";
 import { UNAUTHED_ERR_MSG } from '@shared/const';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -46,6 +47,16 @@ const trpcClient = trpc.createClient({
     httpBatchLink({
       url: "/api/trpc",
       transformer: superjson,
+      headers: async () => {
+        try {
+          const token = await fetchCsrfToken();
+          return { "X-CSRF-Token": token };
+        } catch {
+          // Se falhar, tenta renovar na próxima request
+          invalidateCsrfToken();
+          return {};
+        }
+      },
       fetch(input, init) {
         return globalThis.fetch(input, {
           ...(init ?? {}),

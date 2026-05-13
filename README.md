@@ -514,7 +514,7 @@ npm run test
 
 ### Próximas Features:
 
-- [ ] CSRF Protection
+- [x] CSRF Protection (Double Submit Cookie + HMAC)
 - [ ] Audit Logging
 - [ ] Cache Redis
 - [ ] 2FA para admins

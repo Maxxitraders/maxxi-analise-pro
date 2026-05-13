@@ -15,6 +15,7 @@ import helmet from "helmet";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { globalLimiter, webhookLimiter } from "../rateLimiting";
+import { csrfMiddleware, generateCsrfToken, setCsrfCookie } from "../middleware/csrf";
 import logger from "../utils/logger";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -51,7 +52,7 @@ async function startServer() {
       : ['http://localhost:5173', 'http://localhost:3000'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-CSRF-Token'],
   }));
 
   // ── Rate Limiting ──
@@ -85,6 +86,17 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "5mb", extended: true }));
   // Asaas webhook (after express.json)
   app.post("/api/asaas/webhook", webhookLimiter, handleAsaasWebhook);
+
+  // ── CSRF Protection ──
+  // GET /api/csrf-token: fornece token para o frontend (não precisa de CSRF — é GET)
+  app.get("/api/csrf-token", (_req, res) => {
+    const { token, signature } = generateCsrfToken();
+    setCsrfCookie(res, signature);
+    res.json({ token });
+  });
+  // Valida token em POST/PUT/DELETE/PATCH (exceto webhooks e OAuth)
+  app.use(csrfMiddleware);
+
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
   // tRPC API

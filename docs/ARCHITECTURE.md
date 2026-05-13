@@ -401,6 +401,30 @@ User                Frontend              Backend
    - Password never logged
    - API keys in env vars
 
+6. **CSRF Protection:**
+   - Double Submit Cookie + HMAC (sem `csurf`)
+   - Token: `timestamp:random` assinado com HMAC-SHA256
+   - Cookie `csrf-sig`: httpOnly, secure, sameSite=strict
+   - Header `X-CSRF-Token`: enviado pelo frontend em todas as requests tRPC
+   - Bypass automático: GET/HEAD/OPTIONS, `/api/asaas/webhook`, `/api/stripe/webhook`
+   - Expiração: 1 hora (frontend renova a cada 55 min)
+
+### CSRF — Fluxo:
+
+```
+Frontend                    Backend
+   │                           │
+   │── GET /api/csrf-token ──►│  gera token + HMAC(secret, token)
+   │◄── { token } + cookie ───│  cookie: csrf-sig=<signature> (httpOnly)
+   │                           │
+   │── POST /api/trpc/* ──────►│  verifica:
+   │   X-CSRF-Token: <token>   │  1. token presente no header
+   │   Cookie: csrf-sig=<sig>  │  2. cookie presente
+   │                           │  3. HMAC(token) == sig (timingSafeEqual)
+   │                           │  4. timestamp dentro de 1 hora
+   │◄── resposta ──────────────│
+```
+
 ### CORS Configuration:
 
 ```typescript
