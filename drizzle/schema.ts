@@ -112,6 +112,8 @@ export const margemConsultations = mysqlTable("margem_consultations", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   cpf: varchar("cpf", { length: 14 }).notNull(),
+  matricula: varchar("matricula", { length: 100 }),
+  cnpj: varchar("cnpj", { length: 14 }),
   nomeCompleto: varchar("nomeCompleto", { length: 255 }),
   dataNascimento: varchar("dataNascimento", { length: 16 }),
   margemDisponivel: decimal("margemDisponivel", { precision: 10, scale: 2 }),

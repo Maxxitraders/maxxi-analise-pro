@@ -1046,64 +1046,45 @@ export const appRouter = router({
   // ── Margem Consignável ──
   margem: router({
     consultar: protectedProcedure
-      .input(z.object({ cpf: z.string().min(11).max(14) }))
+      .input(z.object({
+        cpf: z.string().length(11, "CPF deve ter 11 dígitos"),
+        matricula: z.string().min(1, "Matrícula é obrigatória"),
+        cnpj: z.string().length(14, "CNPJ deve ter 14 dígitos"),
+      }))
       .mutation(async ({ ctx, input }) => {
-        const { debitSaldoAtomic } = await import("./db-atomic");
-        const { getDb } = await import("./db");
-        const { margemConsultations } = await import("../drizzle/schema");
+        const { debitSaldoAtomic, estornarSaldoAtomic } = await import("./db-atomic");
 
         const CUSTO = 3.00;
+        const { cpf, matricula, cnpj } = input;
 
-        const user = await getUserById(ctx.user.id);
-        if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado." });
-
-        const cleaned = input.cpf.replace(/\D/g, "");
-        if (!validateCpf(cleaned)) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "CPF inválido." });
-        }
-
-        // Débita saldo atomicamente (lança FORBIDDEN se saldo insuficiente)
+        // Débito atômico antes de chamar a API
         await debitSaldoAtomic(
           ctx.user.id,
           CUSTO,
-          `Consulta de margem consignável - CPF ${cleaned.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}`,
+          `Consulta margem consignável - CPF ${cpf.slice(0, 3)}***`,
           null
         );
 
-        let resultado;
         try {
-          resultado = await consultarMargemConsignavel(cleaned);
+          const resultado = await consultarMargemConsignavel({
+            cpf,
+            matricula,
+            cnpj,
+            userId: ctx.user.id,
+          });
+          return resultado;
         } catch (err) {
-          // Estornar saldo em caso de falha na API
-          const { estornarSaldoAtomic } = await import("./db-atomic");
-          await estornarSaldoAtomic(ctx.user.id, CUSTO, "Estorno: falha na consulta de margem consignável");
+          // Estornar saldo — a consulta falhou
+          await estornarSaldoAtomic(
+            ctx.user.id,
+            CUSTO,
+            "Estorno: falha na consulta de margem consignável"
+          );
           throw err instanceof TRPCError ? err : new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
             message: err instanceof Error ? err.message : "Erro ao consultar margem consignável.",
           });
         }
-
-        // Persistir no banco
-        const db = await getDb();
-        if (db) {
-          await db.insert(margemConsultations).values({
-            userId: ctx.user.id,
-            cpf: cleaned,
-            nomeCompleto: resultado.nomeCompleto ?? undefined,
-            dataNascimento: resultado.dataNascimento ?? undefined,
-            margemDisponivel: String(resultado.margemDisponivel),
-            margemUtilizada: String(resultado.margemUtilizada),
-            margemTotal: String(resultado.margemTotal),
-            margemCartaoDisponivel: String(resultado.margemCartaoDisponivel),
-            margemCartaoUtilizada: String(resultado.margemCartaoUtilizada),
-            orgao: resultado.orgao ?? undefined,
-            competencia: resultado.competencia ?? undefined,
-            status: resultado.dataSource === "simulado" ? "simulado" : "consultado",
-            rawResponse: null,
-          });
-        }
-
-        return resultado;
       }),
 
     historico: protectedProcedure

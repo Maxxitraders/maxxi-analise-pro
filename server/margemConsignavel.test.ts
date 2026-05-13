@@ -1,13 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import {
-  consultarMargemConsignavel,
-  validateCpf,
-} from "./creditEngine";
+import { consultarMargemConsignavel, validateCpf } from "./creditEngine";
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Fixtures ──────────────────────────────────────────────────────────────────
 
-const CPF_VALIDO = "52998224725"; // CPF de teste válido
-const CPF_INVALIDO = "12345678901";
+const CPF_VALIDO = "52998224725";
+const MATRICULA_VALIDA = "09613446080166608132";
+const CNPJ_VALIDO = "11222333000181";
+
+const INPUT_VALIDO = {
+  cpf: CPF_VALIDO,
+  matricula: MATRICULA_VALIDA,
+  cnpj: CNPJ_VALIDO,
+  userId: 1,
+};
 
 // ── validateCpf ───────────────────────────────────────────────────────────────
 
@@ -25,7 +30,7 @@ describe("validateCpf", () => {
   });
 
   it("retorna false para CPF inválido", () => {
-    expect(validateCpf(CPF_INVALIDO)).toBe(false);
+    expect(validateCpf("12345678901")).toBe(false);
   });
 
   it("aceita CPF formatado com pontos e hífen", () => {
@@ -33,7 +38,53 @@ describe("validateCpf", () => {
   });
 });
 
-// ── consultarMargemConsignavel — modo simulado (sem API_FULL_TOKEN) ────────────
+// ── Validação de inputs ───────────────────────────────────────────────────────
+
+describe("consultarMargemConsignavel — validação de entrada", () => {
+  it("lança erro para CPF com menos de 11 dígitos", async () => {
+    await expect(
+      consultarMargemConsignavel({ cpf: "123", matricula: MATRICULA_VALIDA, cnpj: CNPJ_VALIDO, userId: 1 })
+    ).rejects.toThrow("CPF deve ter 11 dígitos");
+  });
+
+  it("lança erro para CPF com mais de 11 dígitos", async () => {
+    await expect(
+      consultarMargemConsignavel({ cpf: "123456789012", matricula: MATRICULA_VALIDA, cnpj: CNPJ_VALIDO, userId: 1 })
+    ).rejects.toThrow("CPF deve ter 11 dígitos");
+  });
+
+  it("lança erro para CPF vazio", async () => {
+    await expect(
+      consultarMargemConsignavel({ cpf: "", matricula: MATRICULA_VALIDA, cnpj: CNPJ_VALIDO, userId: 1 })
+    ).rejects.toThrow("CPF deve ter 11 dígitos");
+  });
+
+  it("lança erro para matrícula vazia", async () => {
+    await expect(
+      consultarMargemConsignavel({ cpf: CPF_VALIDO, matricula: "", cnpj: CNPJ_VALIDO, userId: 1 })
+    ).rejects.toThrow("Matrícula é obrigatória");
+  });
+
+  it("lança erro para matrícula só com espaços", async () => {
+    await expect(
+      consultarMargemConsignavel({ cpf: CPF_VALIDO, matricula: "   ", cnpj: CNPJ_VALIDO, userId: 1 })
+    ).rejects.toThrow("Matrícula é obrigatória");
+  });
+
+  it("lança erro para CNPJ com menos de 14 dígitos", async () => {
+    await expect(
+      consultarMargemConsignavel({ cpf: CPF_VALIDO, matricula: MATRICULA_VALIDA, cnpj: "123", userId: 1 })
+    ).rejects.toThrow("CNPJ deve ter 14 dígitos");
+  });
+
+  it("lança erro para CNPJ com mais de 14 dígitos", async () => {
+    await expect(
+      consultarMargemConsignavel({ cpf: CPF_VALIDO, matricula: MATRICULA_VALIDA, cnpj: "123456789012345", userId: 1 })
+    ).rejects.toThrow("CNPJ deve ter 14 dígitos");
+  });
+});
+
+// ── Modo simulado (sem API_FULL_TOKEN) ────────────────────────────────────────
 
 describe("consultarMargemConsignavel — modo simulado", () => {
   beforeEach(() => {
@@ -44,11 +95,24 @@ describe("consultarMargemConsignavel — modo simulado", () => {
     vi.unstubAllEnvs();
   });
 
-  it("retorna resultado simulado quando token não configurado", async () => {
-    const result = await consultarMargemConsignavel(CPF_VALIDO);
-
+  it("retorna dataSource=simulado quando token não configurado", async () => {
+    const result = await consultarMargemConsignavel(INPUT_VALIDO);
     expect(result.dataSource).toBe("simulado");
-    expect(result.cpf).toMatch(/\d{3}\.\d{3}\.\d{3}-\d{2}/);
+  });
+
+  it("retorna CPF formatado com pontos e hífen", async () => {
+    const result = await consultarMargemConsignavel(INPUT_VALIDO);
+    expect(result.cpf).toBe("529.982.247-25");
+  });
+
+  it("ecoa matrícula e CNPJ passados como entrada", async () => {
+    const result = await consultarMargemConsignavel(INPUT_VALIDO);
+    expect(result.matricula).toBe(MATRICULA_VALIDA);
+    expect(result.cnpj).toBe(CNPJ_VALIDO);
+  });
+
+  it("retorna campos numéricos com tipo number", async () => {
+    const result = await consultarMargemConsignavel(INPUT_VALIDO);
     expect(typeof result.margemDisponivel).toBe("number");
     expect(typeof result.margemUtilizada).toBe("number");
     expect(typeof result.margemTotal).toBe("number");
@@ -56,42 +120,17 @@ describe("consultarMargemConsignavel — modo simulado", () => {
     expect(typeof result.margemCartaoUtilizada).toBe("number");
   });
 
-  it("margem disponível + utilizada não excede total (simulado)", async () => {
-    const result = await consultarMargemConsignavel(CPF_VALIDO);
-    expect(result.margemDisponivel + result.margemUtilizada).toBeLessThanOrEqual(
-      result.margemTotal + 0.01 // tolerância de arredondamento
-    );
-  });
-
-  it("retorna CPF formatado corretamente", async () => {
-    const result = await consultarMargemConsignavel(CPF_VALIDO);
-    expect(result.cpf).toBe("529.982.247-25");
+  it("margem utilizada + disponível não excede total (simulado)", async () => {
+    const r = await consultarMargemConsignavel(INPUT_VALIDO);
+    expect(r.margemUtilizada + r.margemDisponivel).toBeLessThanOrEqual(r.margemTotal + 0.01);
   });
 });
 
-// ── consultarMargemConsignavel — CPF inválido ─────────────────────────────────
+// ── Com token configurado (mock fetch) ────────────────────────────────────────
 
-describe("consultarMargemConsignavel — validação de entrada", () => {
-  it("lança erro para CPF com comprimento errado", async () => {
-    await expect(consultarMargemConsignavel("123")).rejects.toThrow(
-      "CPF inválido para consulta de margem consignável"
-    );
-  });
-
-  it("lança erro para string vazia", async () => {
-    await expect(consultarMargemConsignavel("")).rejects.toThrow(
-      "CPF inválido para consulta de margem consignável"
-    );
-  });
-});
-
-// ── consultarMargemConsignavel — com token (mock fetch) ──────────────────────
-
-describe("consultarMargemConsignavel — com token configurado", () => {
-  const mockToken = "test-token-123";
-
+describe("consultarMargemConsignavel — com token e fetch mockado", () => {
   beforeEach(() => {
-    vi.stubEnv("API_FULL_TOKEN", mockToken);
+    vi.stubEnv("API_FULL_TOKEN", "token-de-teste-123");
     vi.stubGlobal("fetch", vi.fn());
   });
 
@@ -100,67 +139,104 @@ describe("consultarMargemConsignavel — com token configurado", () => {
     vi.unstubAllGlobals();
   });
 
-  it("retorna dados da API quando fetch é bem-sucedido", async () => {
-    const mockResponse = {
-      dados: {
-        nome: "JOÃO DA SILVA",
-        dataNascimento: "15/03/1980",
-        margemDisponivel: 1200.50,
-        margemUtilizada: 800.00,
-        margemTotal: 2000.50,
-        margemCartaoDisponivel: 300.00,
-        margemCartaoUtilizada: 150.00,
-        orgao: "INSS",
-        competencia: "05/2026",
-      },
+  it("retorna dados normalizados da API quando fetch é bem-sucedido", async () => {
+    const mockApiResponse = {
+      nomeCompleto: "MARIA JOSE DA SILVA",
+      dataNascimento: "15/06/1985",
+      margemDisponivel: 1200.50,
+      margemUtilizada: 800.00,
+      margemTotal: 2000.50,
+      margemCartaoDisponivel: 300.00,
+      margemCartaoUtilizada: 150.00,
+      orgao: "INSS",
+      competencia: "05/2026",
     };
 
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => mockResponse,
+      json: async () => mockApiResponse,
     });
 
-    const result = await consultarMargemConsignavel(CPF_VALIDO);
+    const result = await consultarMargemConsignavel(INPUT_VALIDO);
 
     expect(result.dataSource).toBe("apifull");
-    expect(result.nomeCompleto).toBe("JOÃO DA SILVA");
-    expect(result.margemDisponivel).toBe(1200.5);
-    expect(result.margemTotal).toBe(2000.5);
+    expect(result.nomeCompleto).toBe("MARIA JOSE DA SILVA");
+    expect(result.margemDisponivel).toBe(1200.50);
+    expect(result.margemTotal).toBe(2000.50);
     expect(result.orgao).toBe("INSS");
   });
 
-  it("lança ApiUnavailableError quando API retorna HTTP 500", async () => {
+  it("aceita resposta com wrapper 'dados'", async () => {
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: false,
-      status: 500,
+      ok: true,
+      json: async () => ({
+        dados: { nomeCompleto: "JOSE FILHO", margemDisponivel: 500, margemUtilizada: 100, margemTotal: 600 },
+      }),
     });
 
-    await expect(consultarMargemConsignavel(CPF_VALIDO)).rejects.toThrow(
-      "API de margem consignável retornou HTTP 500"
+    const result = await consultarMargemConsignavel(INPUT_VALIDO);
+    expect(result.nomeCompleto).toBe("JOSE FILHO");
+    expect(result.margemDisponivel).toBe(500);
+  });
+
+  it("lança ApiUnavailableError quando API retorna HTTP não-ok", async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false,
+      status: 422,
+      text: async () => "Unprocessable Entity",
+    });
+
+    await expect(consultarMargemConsignavel(INPUT_VALIDO)).rejects.toThrow(
+      "API de margem consignável retornou HTTP 422"
     );
   });
 
-  it("lança ApiUnavailableError quando fetch lança exceção de rede", async () => {
+  it("lança ApiUnavailableError para erro de rede", async () => {
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(
       new TypeError("Failed to fetch")
     );
 
-    await expect(consultarMargemConsignavel(CPF_VALIDO)).rejects.toThrow(
+    await expect(consultarMargemConsignavel(INPUT_VALIDO)).rejects.toThrow(
       "Não foi possível consultar a margem consignável"
     );
   });
 
-  it("envia CPF limpo (só dígitos) no body da requisição", async () => {
-    const mockResponse = { dados: {} };
+  it("usa endpoint correto /v3/operacoes/consignado-privado/consultar-margem", async () => {
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => mockResponse,
+      json: async () => ({}),
     });
 
-    await consultarMargemConsignavel("529.982.247-25").catch(() => {});
+    await consultarMargemConsignavel(INPUT_VALIDO).catch(() => {});
+
+    const [url] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toContain("/v3/operacoes/consignado-privado/consultar-margem");
+  });
+
+  it("envia cpf, matricula e cnpj no body", async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    });
+
+    await consultarMargemConsignavel(INPUT_VALIDO).catch(() => {});
 
     const [, options] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     const body = JSON.parse(options.body as string);
-    expect(body.document).toBe(CPF_VALIDO);
+    expect(body.cpf).toBe(CPF_VALIDO);
+    expect(body.matricula).toBe(MATRICULA_VALIDA);
+    expect(body.cnpj).toBe(CNPJ_VALIDO);
+  });
+
+  it("envia header Authorization Bearer", async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    });
+
+    await consultarMargemConsignavel(INPUT_VALIDO).catch(() => {});
+
+    const [, options] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(options.headers["Authorization"]).toBe("Bearer token-de-teste-123");
   });
 });

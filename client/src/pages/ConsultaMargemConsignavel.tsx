@@ -3,6 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
@@ -17,6 +18,7 @@ import {
   Database,
   AlertCircle,
   Wallet,
+  Info,
 } from "lucide-react";
 
 const CUSTO_CONSULTA = 3.0;
@@ -27,6 +29,15 @@ function formatCpfInput(value: string): string {
   if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
   if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
   return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+}
+
+function formatCnpjInput(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 14);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+  if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+  if (digits.length <= 12) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
 }
 
 function formatCurrency(value: number): string {
@@ -43,12 +54,10 @@ function MargemBar({ disponivel, utilizada, total }: { disponivel: number; utili
         <div
           className="h-full bg-red-400 transition-all"
           style={{ width: `${pctUtilizada}%` }}
-          title={`Utilizado: ${formatCurrency(utilizada)}`}
         />
         <div
           className="h-full bg-emerald-400 transition-all"
           style={{ width: `${pctDisponivel}%` }}
-          title={`Disponível: ${formatCurrency(disponivel)}`}
         />
       </div>
       <div className="flex justify-between text-xs text-muted-foreground">
@@ -65,6 +74,8 @@ function MargemBar({ disponivel, utilizada, total }: { disponivel: number; utili
 
 type ResultadoMargem = {
   cpf: string;
+  matricula: string;
+  cnpj: string;
   nomeCompleto: string | null;
   dataNascimento: string | null;
   margemDisponivel: number;
@@ -79,6 +90,8 @@ type ResultadoMargem = {
 
 export default function ConsultaMargemConsignavel() {
   const [cpf, setCpf] = useState("");
+  const [matricula, setMatricula] = useState("");
+  const [cnpj, setCnpj] = useState("");
   const [resultado, setResultado] = useState<ResultadoMargem | null>(null);
 
   const saldoQuery = trpc.wallet.getSaldo.useQuery();
@@ -94,17 +107,26 @@ export default function ConsultaMargemConsignavel() {
   });
 
   const saldo = saldoQuery.data?.saldo ?? 0;
-  const saldoInsuficiente = saldo < CUSTO_CONSULTA;
+  const saldoInsuficiente = Number(saldo) < CUSTO_CONSULTA;
   const cpfDigits = cpf.replace(/\D/g, "");
-  const cpfValido = cpfDigits.length === 11;
+  const cnpjDigits = cnpj.replace(/\D/g, "");
+  const formValido = cpfDigits.length === 11 && matricula.trim().length > 0 && cnpjDigits.length === 14;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!cpfValido) {
-      toast.error("Informe um CPF válido com 11 dígitos.");
+    if (cpfDigits.length !== 11) {
+      toast.error("CPF deve ter 11 dígitos.");
       return;
     }
-    consultarMutation.mutate({ cpf: cpfDigits });
+    if (!matricula.trim()) {
+      toast.error("Matrícula é obrigatória.");
+      return;
+    }
+    if (cnpjDigits.length !== 14) {
+      toast.error("CNPJ deve ter 14 dígitos.");
+      return;
+    }
+    consultarMutation.mutate({ cpf: cpfDigits, matricula: matricula.trim(), cnpj: cnpjDigits });
   }
 
   return (
@@ -117,7 +139,7 @@ export default function ConsultaMargemConsignavel() {
         <div>
           <h1 className="text-xl font-semibold">Consulta de Margem Consignável</h1>
           <p className="text-sm text-muted-foreground">
-            Consulte a margem disponível para crédito consignado pelo CPF
+            Informe CPF, matrícula e CNPJ para consultar a margem disponível
           </p>
         </div>
       </div>
@@ -129,19 +151,60 @@ export default function ConsultaMargemConsignavel() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label htmlFor="cpf-input" className="text-sm font-medium">
-                CPF do Beneficiário
-              </label>
-              <Input
-                id="cpf-input"
-                placeholder="000.000.000-00"
-                value={cpf}
-                onChange={(e) => setCpf(formatCpfInput(e.target.value))}
-                maxLength={14}
-                autoComplete="off"
-                inputMode="numeric"
-              />
+            {/* 3 campos em grid */}
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="cpf-input">
+                  CPF do Titular <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="cpf-input"
+                  placeholder="000.000.000-00"
+                  value={cpf}
+                  onChange={(e) => setCpf(formatCpfInput(e.target.value))}
+                  maxLength={14}
+                  autoComplete="off"
+                  inputMode="numeric"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="matricula-input">
+                  Matrícula <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="matricula-input"
+                  placeholder="Ex: 09613446080166608132"
+                  value={matricula}
+                  onChange={(e) => setMatricula(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="cnpj-input">
+                  CNPJ da Empresa <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="cnpj-input"
+                  placeholder="00.000.000/0000-00"
+                  value={cnpj}
+                  onChange={(e) => setCnpj(formatCnpjInput(e.target.value))}
+                  maxLength={18}
+                  autoComplete="off"
+                  inputMode="numeric"
+                />
+              </div>
+            </div>
+
+            {/* Dica sobre os campos */}
+            <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+              <Info className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                <strong>CPF</strong> do titular do empréstimo ·{" "}
+                <strong>Matrícula</strong> consta no holerite ·{" "}
+                <strong>CNPJ</strong> da empresa empregadora
+              </span>
             </div>
 
             {/* Custo e saldo */}
@@ -162,7 +225,7 @@ export default function ConsultaMargemConsignavel() {
 
             <Button
               type="submit"
-              disabled={!cpfValido || saldoInsuficiente || consultarMutation.isPending}
+              disabled={!formValido || saldoInsuficiente || consultarMutation.isPending}
               className="w-full"
             >
               {consultarMutation.isPending ? (
@@ -217,7 +280,7 @@ export default function ConsultaMargemConsignavel() {
               <div className="flex items-start gap-2 sm:col-span-2">
                 <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Órgão / Benefício</p>
+                  <p className="text-xs text-muted-foreground">Órgão / Empresa</p>
                   <p className="text-sm font-medium">{resultado.orgao ?? "—"}</p>
                 </div>
               </div>

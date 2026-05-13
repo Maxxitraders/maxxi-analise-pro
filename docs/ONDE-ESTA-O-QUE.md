@@ -64,18 +64,31 @@
 **Função de consulta à API Full:**
 ```
 📂 server/creditEngine.ts
-   └─ função: consultarMargemConsignavel()
+   └─ função: consultarMargemConsignavel({ cpf, matricula, cnpj, userId })
+```
+
+**Campos obrigatórios:**
+- `cpf` — CPF do titular (11 dígitos)
+- `matricula` — número de matrícula na empresa (consta no holerite)
+- `cnpj` — CNPJ da empresa empregadora (14 dígitos)
+
+**API Integration:**
+```
+Endpoint: POST /v3/operacoes/consignado-privado/consultar-margem
+Base URL: API_FULL_BASE_URL (default: https://api.apifull.com.br)
+Auth: Bearer API_FULL_TOKEN
+Fallback: retorna dados simulados se token não configurado
 ```
 
 **Testes:**
 ```
-📂 server/margemConsignavel.test.ts
+📂 server/margemConsignavel.test.ts   (20 testes)
 ```
 
 **Rotas tRPC:**
 ```
 📂 server/routers.ts
-   └─ rota: margem.consultar (mutation, R$ 3,00)
+   └─ rota: margem.consultar (mutation, R$ 3,00 — débito atômico + estorno em falha)
    └─ rota: margem.historico (query)
 ```
 
@@ -88,8 +101,9 @@
 **Tabela no banco:**
 ```
 📂 drizzle/schema.ts
-   └─ tabela: margemConsultations
-📂 drizzle/0009_add_margem_consultations.sql
+   └─ tabela: margemConsultations (colunas: cpf, matricula, cnpj, margens...)
+📂 drizzle/0009_add_margem_consultations.sql   (criação da tabela)
+📂 drizzle/0010_add_matricula_cnpj_to_margem.sql   (add colunas matricula/cnpj)
 ```
 
 ---

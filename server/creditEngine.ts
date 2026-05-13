@@ -929,6 +929,8 @@ export function isHighRisk(result: AnalysisResult): boolean {
 
 export interface MargemConsignavelResult {
   cpf: string;
+  matricula: string;
+  cnpj: string;
   nomeCompleto: string | null;
   dataNascimento: string | null;
   margemDisponivel: number;
@@ -941,70 +943,152 @@ export interface MargemConsignavelResult {
   dataSource: "apifull" | "simulado";
 }
 
-export async function consultarMargemConsignavel(cpf: string): Promise<MargemConsignavelResult> {
-  const cleaned = cleanDocument(cpf);
-  if (cleaned.length !== 11) {
-    throw new Error("CPF inválido para consulta de margem consignável.");
+async function persistirMargemConsultation(
+  userId: number,
+  dados: MargemConsignavelResult
+): Promise<void> {
+  try {
+    const { getDb } = await import("./db");
+    const { margemConsultations } = await import("../drizzle/schema");
+    const db = await getDb();
+    if (!db) return;
+    await db.insert(margemConsultations).values({
+      userId,
+      cpf: dados.cpf.replace(/\D/g, ""),
+      matricula: dados.matricula,
+      cnpj: dados.cnpj,
+      nomeCompleto: dados.nomeCompleto ?? undefined,
+      dataNascimento: dados.dataNascimento ?? undefined,
+      margemDisponivel: String(dados.margemDisponivel),
+      margemUtilizada: String(dados.margemUtilizada),
+      margemTotal: String(dados.margemTotal),
+      margemCartaoDisponivel: String(dados.margemCartaoDisponivel),
+      margemCartaoUtilizada: String(dados.margemCartaoUtilizada),
+      orgao: dados.orgao ?? undefined,
+      competencia: dados.competencia ?? undefined,
+      status: dados.dataSource === "simulado" ? "simulado" : "consultado",
+      rawResponse: null,
+    });
+  } catch (err) {
+    console.warn("[CreditEngine] Falha ao persistir consulta de margem:", err);
+  }
+}
+
+export async function consultarMargemConsignavel({
+  cpf,
+  matricula,
+  cnpj,
+  userId,
+}: {
+  cpf: string;
+  matricula: string;
+  cnpj: string;
+  userId: number;
+}): Promise<MargemConsignavelResult> {
+  // Validações
+  if (!/^\d{11}$/.test(cpf)) {
+    throw new Error("CPF deve ter 11 dígitos numéricos.");
+  }
+  if (!matricula || matricula.trim().length === 0) {
+    throw new Error("Matrícula é obrigatória.");
+  }
+  if (!/^\d{14}$/.test(cnpj)) {
+    throw new Error("CNPJ deve ter 14 dígitos numéricos.");
   }
 
   const token = ENV.apiFullToken;
+  const apiBase = process.env.API_FULL_BASE_URL ?? "https://api.apifull.com.br";
 
   if (!token) {
-    // Dados simulados para desenvolvimento
-    return {
-      cpf: formatCpf(cleaned),
-      nomeCompleto: "NOME SIMULADO DA SILVA",
-      dataNascimento: "01/01/1975",
-      margemDisponivel: 850.00,
-      margemUtilizada: 650.00,
-      margemTotal: 1500.00,
-      margemCartaoDisponivel: 200.00,
-      margemCartaoUtilizada: 100.00,
-      orgao: "INSS - Instituto Nacional do Seguro Social",
-      competencia: new Date().toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }),
-      dataSource: "simulado",
-    };
+    console.info("[CreditEngine] API_FULL_TOKEN não configurado — retornando dados simulados.");
+    const mock = buildMockResult(cpf, matricula, cnpj);
+    await persistirMargemConsultation(userId, mock);
+    return mock;
   }
 
+  console.info("[CreditEngine] Consultando margem consignável", {
+    userId,
+    cpf: cpf.slice(0, 3) + "***",
+    matricula: matricula.slice(0, 3) + "***",
+    cnpj: cnpj.slice(0, 4) + "***",
+  });
+
+  let data: any;
   try {
-    const response = await fetch("https://api.apifull.com.br/api/margem-consignavel", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "*/*",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ document: cleaned, link: "margem-consignavel" }),
-      signal: AbortSignal.timeout(30000),
-    });
+    const response = await fetch(
+      `${apiBase}/v3/operacoes/consignado-privado/consultar-margem`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ cpf, matricula, cnpj }),
+        signal: AbortSignal.timeout(30000),
+      }
+    );
 
     if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      console.error("[CreditEngine] Erro na API Full", {
+        status: response.status,
+        body: errorText,
+      });
       throw new ApiUnavailableError(
         `API de margem consignável retornou HTTP ${response.status}. Tente novamente.`
       );
     }
 
-    const data = await response.json();
-    const d = data?.dados ?? data;
-
-    return {
-      cpf: formatCpf(cleaned),
-      nomeCompleto: d?.nome ?? d?.nomeCompleto ?? null,
-      dataNascimento: d?.dataNascimento ?? d?.data_nascimento ?? null,
-      margemDisponivel: parseBrCurrency(d?.margemDisponivel ?? d?.margem_disponivel ?? 0),
-      margemUtilizada: parseBrCurrency(d?.margemUtilizada ?? d?.margem_utilizada ?? 0),
-      margemTotal: parseBrCurrency(d?.margemTotal ?? d?.margem_total ?? 0),
-      margemCartaoDisponivel: parseBrCurrency(d?.margemCartaoDisponivel ?? d?.margem_cartao_disponivel ?? 0),
-      margemCartaoUtilizada: parseBrCurrency(d?.margemCartaoUtilizada ?? d?.margem_cartao_utilizada ?? 0),
-      orgao: d?.orgao ?? d?.beneficio?.orgao ?? null,
-      competencia: d?.competencia ?? null,
-      dataSource: "apifull",
-    };
+    data = await response.json();
   } catch (err) {
     if (err instanceof ApiUnavailableError) throw err;
-    console.error("[CreditEngine] Erro ao consultar margem consignável:", err);
+    console.error("[CreditEngine] Falha de rede ao consultar margem:", err);
     throw new ApiUnavailableError(
       "Não foi possível consultar a margem consignável no momento. Tente novamente."
     );
   }
+
+  const d = data?.dados ?? data;
+
+  const resultado: MargemConsignavelResult = {
+    cpf: formatCpf(cpf),
+    matricula,
+    cnpj,
+    nomeCompleto: d?.nomeCompleto ?? d?.nome_completo ?? d?.nome ?? null,
+    dataNascimento: d?.dataNascimento ?? d?.data_nascimento ?? null,
+    margemDisponivel: parseBrCurrency(d?.margemDisponivel ?? d?.margem_disponivel ?? 0),
+    margemUtilizada: parseBrCurrency(d?.margemUtilizada ?? d?.margem_utilizada ?? 0),
+    margemTotal: parseBrCurrency(d?.margemTotal ?? d?.margem_total ?? 0),
+    margemCartaoDisponivel: parseBrCurrency(d?.margemCartaoDisponivel ?? d?.margem_cartao_disponivel ?? 0),
+    margemCartaoUtilizada: parseBrCurrency(d?.margemCartaoUtilizada ?? d?.margem_cartao_utilizada ?? 0),
+    orgao: d?.orgao ?? d?.empresa ?? null,
+    competencia: d?.competencia ?? null,
+    dataSource: "apifull",
+  };
+
+  await persistirMargemConsultation(userId, resultado);
+  return resultado;
+}
+
+function buildMockResult(
+  cpf: string,
+  matricula: string,
+  cnpj: string
+): MargemConsignavelResult {
+  return {
+    cpf: formatCpf(cpf),
+    matricula,
+    cnpj,
+    nomeCompleto: "NOME SIMULADO DA SILVA",
+    dataNascimento: "01/01/1975",
+    margemDisponivel: 850.00,
+    margemUtilizada: 650.00,
+    margemTotal: 1500.00,
+    margemCartaoDisponivel: 200.00,
+    margemCartaoUtilizada: 100.00,
+    orgao: "INSS - Instituto Nacional do Seguro Social",
+    competencia: new Date().toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }),
+    dataSource: "simulado",
+  };
 }
