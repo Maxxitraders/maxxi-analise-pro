@@ -11,7 +11,18 @@
       "Bash(pnpm check *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(Get-ChildItem client/src/pages/ -Name)"
+      "Bash(Get-ChildItem client/src/pages/ -Name)",
+      "Bash(railway variables *)",
+      "Bash(node *)",
+      "WebFetch(domain:apifull.com.br)",
+      "WebFetch(domain:api.apifull.com.br)",
+      "WebFetch(domain:www.postman.com)",
+      "WebFetch(domain:doc.apifull.com.br)",
+      "Bash(git push *)",
+      "WebSearch",
+      "WebFetch(domain:www.verifiqconsignado.com.br)",
+      "Bash(Remove-Item *)",
+      "Bash(git restore *)"
     ]
   }
 }
