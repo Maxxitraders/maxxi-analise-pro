@@ -130,3 +130,27 @@ export const margemConsultations = mysqlTable("margem_consultations", {
 
 export type MargemConsultation = typeof margemConsultations.$inferSelect;
 export type InsertMargemConsultation = typeof margemConsultations.$inferInsert;
+
+export const serasaConsultations = mysqlTable("serasa_consultations", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  cpf: varchar("cpf", { length: 11 }).notNull(),
+  score: int("score"),
+  scoreCategoria: varchar("scoreCategoria", { length: 50 }),
+  nome: varchar("nome", { length: 255 }),
+  dataNascimento: varchar("dataNascimento", { length: 16 }),
+  totalPendencias: decimal("totalPendencias", { precision: 10, scale: 2 }),
+  qtdPendencias: int("qtdPendencias").default(0),
+  totalProtestos: decimal("totalProtestos", { precision: 10, scale: 2 }),
+  qtdProtestos: int("qtdProtestos").default(0),
+  totalChequesSemFundo: decimal("totalChequesSemFundo", { precision: 10, scale: 2 }),
+  qtdChequesSemFundo: int("qtdChequesSemFundo").default(0),
+  totalChequesSustados: decimal("totalChequesSustados", { precision: 10, scale: 2 }),
+  qtdChequesSustados: int("qtdChequesSustados").default(0),
+  status: varchar("status", { length: 20 }).default("pending").notNull(),
+  rawResponse: text("rawResponse"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SerasaConsultation = typeof serasaConsultations.$inferSelect;
+export type InsertSerasaConsultation = typeof serasaConsultations.$inferInsert;

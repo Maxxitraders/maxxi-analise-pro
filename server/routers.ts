@@ -53,7 +53,7 @@ import {
   detectDocumentType,
   isHighRisk,
   ApiUnavailableError,
-  consultarMargemConsignavel,
+  consultarSerasaPremium,
   consultarVinculos,
   validateCpf,
 } from "./creditEngine";
@@ -1154,46 +1154,80 @@ export const appRouter = router({
       }),
   }),
 
-  // ── Margem Consignável ──
-  margem: router({
+  // ── Vínculos (busca empregadores por CPF — gratuito) ──
+  vinculos: router({
     consultar: protectedProcedure
       .input(z.object({
         cpf: z.string().length(11, "CPF deve ter 11 dígitos"),
-        matricula: z.string().min(1, "Matrícula é obrigatória"),
-        cnpj: z.string().length(14, "CNPJ deve ter 14 dígitos"),
+      }))
+      .query(async ({ ctx, input }) => {
+        return consultarVinculos({ cpf: input.cpf, userId: ctx.user.id });
+      }),
+  }),
+
+  // ── Serasa Premium (R$ 15,00 por consulta CPF) ──
+  serasa: router({
+    consultar: protectedProcedure
+      .input(z.object({
+        cpf: z.string().regex(/^\d{11}$/, "CPF deve ter 11 dígitos numéricos"),
       }))
       .mutation(async ({ ctx, input }) => {
         const { debitSaldoAtomic, estornarSaldoAtomic } = await import("./db-atomic");
 
-        const CUSTO = 3.00;
-        const { cpf, matricula, cnpj } = input;
+        const CUSTO = 15.00;
+        const { cpf } = input;
 
-        // Débito atômico antes de chamar a API
+        checkBalance(ctx.user, CUSTO);
+
         await debitSaldoAtomic(
           ctx.user.id,
           CUSTO,
-          `Consulta margem consignável - CPF ${cpf.slice(0, 3)}***`,
-          null
+          `Consulta Serasa Premium - CPF ${cpf.slice(0, 3)}***`,
+          "serasa_premium"
         );
 
         try {
-          const resultado = await consultarMargemConsignavel({
-            cpf,
-            matricula,
-            cnpj,
-            userId: ctx.user.id,
-          });
+          const resultado = await consultarSerasaPremium(cpf);
+
+          // Persistir no banco (não-bloqueante)
+          try {
+            const { getDb } = await import("./db");
+            const { serasaConsultations } = await import("../drizzle/schema");
+            const db = await getDb();
+            if (db) {
+              await db.insert(serasaConsultations).values({
+                userId: ctx.user.id,
+                cpf,
+                score: resultado.score,
+                scoreCategoria: resultado.scoreCategoria,
+                nome: resultado.nome,
+                dataNascimento: resultado.dataNascimento || undefined,
+                totalPendencias: String(resultado.pendencias.total),
+                qtdPendencias: resultado.pendencias.quantidade,
+                totalProtestos: String(resultado.protestos.total),
+                qtdProtestos: resultado.protestos.quantidade,
+                totalChequesSemFundo: "0",
+                qtdChequesSemFundo: resultado.chequesSemFundo,
+                totalChequesSustados: "0",
+                qtdChequesSustados: resultado.chequesSustados,
+                status: resultado.dataSource === "simulado" ? "simulado" : "consultado",
+                rawResponse: null,
+              });
+            }
+          } catch (dbErr) {
+            console.warn("[Serasa] Falha ao salvar consulta no banco:", dbErr);
+          }
+
           return resultado;
         } catch (err) {
-          // Estornar saldo — a consulta falhou
           await estornarSaldoAtomic(
             ctx.user.id,
             CUSTO,
-            "Estorno: falha na consulta de margem consignável"
+            "Estorno: falha na consulta Serasa Premium"
           );
           throw err instanceof TRPCError ? err : new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: err instanceof Error ? err.message : "Erro ao consultar margem consignável.",
+            message: err instanceof Error ? err.message : "Erro ao consultar Serasa Premium.",
           });
         }
       }),
@@ -1202,27 +1236,17 @@ export const appRouter = router({
       .input(z.object({ limit: z.number().default(20), offset: z.number().default(0) }))
       .query(async ({ ctx, input }) => {
         const { getDb } = await import("./db");
-        const { margemConsultations } = await import("../drizzle/schema");
+        const { serasaConsultations } = await import("../drizzle/schema");
         const { desc, eq } = await import("drizzle-orm");
-
         const db = await getDb();
         if (!db) return [];
-
         return db
           .select()
-          .from(margemConsultations)
-          .where(eq(margemConsultations.userId, ctx.user.id))
-          .orderBy(desc(margemConsultations.createdAt))
+          .from(serasaConsultations)
+          .where(eq(serasaConsultations.userId, ctx.user.id))
+          .orderBy(desc(serasaConsultations.createdAt))
           .limit(input.limit)
           .offset(input.offset);
-      }),
-
-    consultarVinculos: protectedProcedure
-      .input(z.object({
-        cpf: z.string().length(11, "CPF deve ter 11 dígitos"),
-      }))
-      .query(async ({ ctx, input }) => {
-        return consultarVinculos({ cpf: input.cpf, userId: ctx.user.id });
       }),
   }),
 });

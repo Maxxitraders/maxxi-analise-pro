@@ -925,171 +925,122 @@ export function isHighRisk(result: AnalysisResult): boolean {
   );
 }
 
-// ── Margem Consignável ──
+// ── Serasa Premium (consulta CPF) ──
 
-export interface MargemConsignavelResult {
+export interface ResultadoSerasa {
   cpf: string;
-  matricula: string;
-  cnpj: string;
-  nomeCompleto: string | null;
-  dataNascimento: string | null;
-  margemDisponivel: number;
-  margemUtilizada: number;
-  margemTotal: number;
-  margemCartaoDisponivel: number;
-  margemCartaoUtilizada: number;
-  orgao: string | null;
-  competencia: string | null;
-  dataSource: "apifull" | "simulado";
+  score: number;
+  scoreCategoria: string;
+  scoreMensagem: string;
+  probabilidadeInadimplencia: string;
+  nome: string;
+  dataNascimento: string;
+  pendencias: {
+    total: number;
+    quantidade: number;
+    itens: PendenciaFinanceira[];
+  };
+  protestos: {
+    total: number;
+    quantidade: number;
+    itens: ProtestoDetalhe[];
+  };
+  chequesSemFundo: number;
+  chequesSustados: number;
+  contumacia: number;
+  rendaPresumida: string;
+  dataSource: "apifull_serasa_premium" | "simulado";
 }
 
-async function persistirMargemConsultation(
-  userId: number,
-  dados: MargemConsignavelResult
-): Promise<void> {
-  try {
-    const { getDb } = await import("./db");
-    const { margemConsultations } = await import("../drizzle/schema");
-    const db = await getDb();
-    if (!db) return;
-    await db.insert(margemConsultations).values({
-      userId,
-      cpf: dados.cpf.replace(/\D/g, ""),
-      matricula: dados.matricula,
-      cnpj: dados.cnpj,
-      nomeCompleto: dados.nomeCompleto ?? undefined,
-      dataNascimento: dados.dataNascimento ?? undefined,
-      margemDisponivel: String(dados.margemDisponivel),
-      margemUtilizada: String(dados.margemUtilizada),
-      margemTotal: String(dados.margemTotal),
-      margemCartaoDisponivel: String(dados.margemCartaoDisponivel),
-      margemCartaoUtilizada: String(dados.margemCartaoUtilizada),
-      orgao: dados.orgao ?? undefined,
-      competencia: dados.competencia ?? undefined,
-      status: dados.dataSource === "simulado" ? "simulado" : "consultado",
-      rawResponse: null,
-    });
-  } catch (err) {
-    console.warn("[CreditEngine] Falha ao persistir consulta de margem:", err);
-  }
+function categoriaFromScore(score: number): string {
+  if (score >= 850) return "Excelente";
+  if (score >= 700) return "Bom";
+  if (score >= 500) return "Regular";
+  if (score >= 300) return "Ruim";
+  return "Muito Ruim";
 }
 
-export async function consultarMargemConsignavel({
-  cpf,
-  matricula,
-  cnpj,
-  userId,
-}: {
-  cpf: string;
-  matricula: string;
-  cnpj: string;
-  userId: number;
-}): Promise<MargemConsignavelResult> {
-  // Validações
+function buildMockSerasa(cpf: string): ResultadoSerasa {
+  const seed = cpf.split("").reduce((acc, d) => acc + parseInt(d), 0);
+  const rand = seededRandom(seed);
+  const score = Math.floor(rand() * 1000);
+  const hasIssues = rand() < 0.3;
+
+  return {
+    cpf: formatCpf(cpf),
+    score,
+    scoreCategoria: categoriaFromScore(score),
+    scoreMensagem: `Score simulado: ${score} pontos`,
+    probabilidadeInadimplencia: "",
+    nome: "NOME SIMULADO DA SILVA",
+    dataNascimento: "01/01/1980",
+    pendencias: {
+      total: hasIssues ? 2500.0 : 0,
+      quantidade: hasIssues ? 2 : 0,
+      itens: hasIssues
+        ? [
+            { data: "15/01/2024", valor: "1500.00", credor: "Banco Simulado" },
+            { data: "20/03/2024", valor: "1000.00", credor: "Financeira XYZ" },
+          ]
+        : [],
+    },
+    protestos: { total: 0, quantidade: 0, itens: [] },
+    chequesSemFundo: 0,
+    chequesSustados: 0,
+    contumacia: 0,
+    rendaPresumida: "De R$ 2.000,01 a R$ 3.000,00",
+    dataSource: "simulado",
+  };
+}
+
+export async function consultarSerasaPremium(cpf: string): Promise<ResultadoSerasa> {
   if (!/^\d{11}$/.test(cpf)) {
     throw new Error("CPF deve ter 11 dígitos numéricos.");
   }
-  if (!matricula || matricula.trim().length === 0) {
-    throw new Error("Matrícula é obrigatória.");
-  }
-  if (!/^\d{14}$/.test(cnpj)) {
-    throw new Error("CNPJ deve ter 14 dígitos numéricos.");
-  }
 
   const token = ENV.apiFullToken;
-  const apiBase = process.env.API_FULL_BASE_URL ?? "https://api.apifull.com.br";
 
   if (!token) {
-    console.info("[CreditEngine] API_FULL_TOKEN não configurado — retornando dados simulados.");
-    const mock = buildMockResult(cpf, matricula, cnpj);
-    await persistirMargemConsultation(userId, mock);
-    return mock;
+    console.info("[CreditEngine] API_FULL_TOKEN não configurado — retornando Serasa simulado.");
+    return buildMockSerasa(cpf);
   }
 
-  console.info("[CreditEngine] Consultando margem consignável", {
-    userId,
-    cpf: cpf.slice(0, 3) + "***",
-    matricula: matricula.slice(0, 3) + "***",
-    cnpj: cnpj.slice(0, 4) + "***",
-  });
+  const result = await fetchApiFullSerasaPremium(cpf);
 
-  let data: any;
-  try {
-    const response = await fetch(
-      `${apiBase}/v3/operacoes/consignado-privado/consultar-margem`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ cpf, matricula, cnpj }),
-        signal: AbortSignal.timeout(30000),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      console.error("[CreditEngine] Erro na API Full", {
-        status: response.status,
-        body: errorText,
-      });
-      throw new ApiUnavailableError(
-        `API de margem consignável retornou HTTP ${response.status}. Tente novamente.`
-      );
-    }
-
-    data = await response.json();
-  } catch (err) {
-    if (err instanceof ApiUnavailableError) throw err;
-    console.error("[CreditEngine] Falha de rede ao consultar margem:", err);
+  if (!result) {
     throw new ApiUnavailableError(
-      "Não foi possível consultar a margem consignável no momento. Tente novamente."
+      "Não foi possível obter os dados da Serasa no momento. Tente novamente."
     );
   }
 
-  const d = data?.dados ?? data;
+  const { credit, cadastral } = result;
 
-  const resultado: MargemConsignavelResult = {
-    cpf: formatCpf(cpf),
-    matricula,
-    cnpj,
-    nomeCompleto: d?.nomeCompleto ?? d?.nome_completo ?? d?.nome ?? null,
-    dataNascimento: d?.dataNascimento ?? d?.data_nascimento ?? null,
-    margemDisponivel: parseBrCurrency(d?.margemDisponivel ?? d?.margem_disponivel ?? 0),
-    margemUtilizada: parseBrCurrency(d?.margemUtilizada ?? d?.margem_utilizada ?? 0),
-    margemTotal: parseBrCurrency(d?.margemTotal ?? d?.margem_total ?? 0),
-    margemCartaoDisponivel: parseBrCurrency(d?.margemCartaoDisponivel ?? d?.margem_cartao_disponivel ?? 0),
-    margemCartaoUtilizada: parseBrCurrency(d?.margemCartaoUtilizada ?? d?.margem_cartao_utilizada ?? 0),
-    orgao: d?.orgao ?? d?.empresa ?? null,
-    competencia: d?.competencia ?? null,
-    dataSource: "apifull",
-  };
-
-  await persistirMargemConsultation(userId, resultado);
-  return resultado;
-}
-
-function buildMockResult(
-  cpf: string,
-  matricula: string,
-  cnpj: string
-): MargemConsignavelResult {
   return {
     cpf: formatCpf(cpf),
-    matricula,
-    cnpj,
-    nomeCompleto: "NOME SIMULADO DA SILVA",
-    dataNascimento: "01/01/1975",
-    margemDisponivel: 850.00,
-    margemUtilizada: 650.00,
-    margemTotal: 1500.00,
-    margemCartaoDisponivel: 200.00,
-    margemCartaoUtilizada: 100.00,
-    orgao: "INSS - Instituto Nacional do Seguro Social",
-    competencia: new Date().toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }),
-    dataSource: "simulado",
+    score: credit.score,
+    scoreCategoria: credit.scoreClassificacao || categoriaFromScore(credit.score),
+    scoreMensagem: credit.scoreMensagem,
+    probabilidadeInadimplencia: credit.probabilidadeInadimplencia,
+    nome: cadastral?.companyName || "Não informado",
+    dataNascimento: cadastral?.dataAbertura || "",
+    pendencias: {
+      total: credit.pendenciasFinanceiras.reduce(
+        (sum, p) => sum + parseBrCurrency(p.valor),
+        0
+      ),
+      quantidade: credit.pendenciasFinanceiras.length,
+      itens: credit.pendenciasFinanceiras,
+    },
+    protestos: {
+      total: credit.protestos.reduce((sum, p) => sum + parseBrCurrency(p.valor), 0),
+      quantidade: credit.protestos.length,
+      itens: credit.protestos,
+    },
+    chequesSemFundo: credit.chequesSemFundo,
+    chequesSustados: credit.chequesSustados,
+    contumacia: credit.contumacia,
+    rendaPresumida: credit.rendaPresumida,
+    dataSource: "apifull_serasa_premium",
   };
 }
 

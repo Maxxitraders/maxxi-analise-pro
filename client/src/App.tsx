@@ -16,7 +16,7 @@ import AdminPlanos from "./pages/AdminPlanos";
 import AdminUserDetails from "./pages/AdminUserDetails";
 import MinhaConta from "./pages/MinhaConta";
 import Carteira from "./pages/Carteira";
-import ConsultaMargemConsignavel from "./pages/ConsultaMargemConsignavel";
+import ConsultaSerasa from "./pages/ConsultaSerasa";
 import Login from "./pages/Login";
 import Cadastro from "./pages/Cadastro";
 import RecuperarSenha from "./pages/RecuperarSenha";
@@ -41,7 +41,7 @@ function Router() {
             <Route path="/detalhes/:id" component={Detalhes} />
             <Route path="/planos" component={Planos} />
             <Route path="/carteira" component={Carteira} />
-            <Route path="/consulta-margem" component={ConsultaMargemConsignavel} />
+            <Route path="/consulta-serasa" component={ConsultaSerasa} />
             <Route path="/assinatura" component={Assinatura} />
             <Route path="/admin" component={Admin} />
             <Route path="/admin/planos" component={AdminPlanos} />
