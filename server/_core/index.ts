@@ -43,7 +43,7 @@ async function startServer() {
   const server = createServer(app);
 
   // ── Trust Proxy (Railway / proxies reversos) ──
-  app.set("trust proxy", true);
+  app.set("trust proxy", 1); // Trust only first proxy (Railway)
 
   // ── Security Headers ──
   app.use(helmet({
