@@ -83,9 +83,9 @@ import {
   resetPassword,
   getUserByEmail,
 } from "./localAuth";
-import { sendPasswordResetEmail, sendWelcomeEmail, sendPaymentConfirmationEmail, isEmailConfigured } from "./email";
+import { sendPasswordResetEmail, sendWelcomeEmail, sendPaymentConfirmationEmail, sendCreditAddedEmail, isEmailConfigured } from "./email";
 import { cpfCnpjSchema, idSchema } from './validation';
-import { consultarCreditoComTransacao } from './db-atomic';
+import { consultarCreditoComTransacao, creditSaldoAtomic } from './db-atomic';
 import { requireOwnership } from './middleware/ownership';
 import {
   ensureAsaasCustomer,
@@ -566,6 +566,7 @@ export const appRouter = router({
           consultasUsed: u.consultasUsedThisMonth,
           consultasLimit: plan?.consultasLimit ?? 0,
           loginMethod: u.loginMethod,
+          saldo: String(u.saldo ?? "0.00"),
           createdAt: u.createdAt,
           lastSignedIn: u.lastSignedIn,
         };
@@ -794,6 +795,115 @@ export const appRouter = router({
         }
         await setUserPlan(input.userId, input.planSlug, plan.consultasLimit);
         return { success: true, message: `Plano alterado para ${plan.name} com sucesso.` };
+      }),
+
+    // ── Detalhes completos do usuário ──
+    getUserDetails: protectedProcedure
+      .input(z.object({ userId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a administradores." });
+        }
+
+        const user = await getUserById(input.userId);
+        if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado." });
+
+        const { getDb } = await import("./db");
+        const { transactions: txTable, creditAnalyses: analysesTable } = await import("../drizzle/schema");
+        const { eq, desc, count: countFn, sql: sqlExpr } = await import("drizzle-orm");
+
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível." });
+
+        const [recentTransactions, recentAnalyses, txAgg, analysesAgg] = await Promise.all([
+          db.select()
+            .from(txTable)
+            .where(eq(txTable.userId, input.userId))
+            .orderBy(desc(txTable.createdAt))
+            .limit(50),
+          db.select({
+            id: analysesTable.id,
+            cnpj: analysesTable.cnpj,
+            documentType: analysesTable.documentType,
+            companyName: analysesTable.companyName,
+            status: analysesTable.status,
+            createdAt: analysesTable.createdAt,
+          })
+            .from(analysesTable)
+            .where(eq(analysesTable.userId, input.userId))
+            .orderBy(desc(analysesTable.createdAt))
+            .limit(50),
+          db.select({
+            totalTransactions: countFn(),
+            totalSpent: sqlExpr<string>`COALESCE(SUM(CASE WHEN tipo = 'consulta' THEN CAST(valor AS DECIMAL(10,2)) ELSE 0 END), 0)`,
+            totalReceived: sqlExpr<string>`COALESCE(SUM(CASE WHEN tipo IN ('recarga', 'estorno') THEN CAST(valor AS DECIMAL(10,2)) ELSE 0 END), 0)`,
+          })
+            .from(txTable)
+            .where(eq(txTable.userId, input.userId)),
+          db.select({ total: countFn() })
+            .from(analysesTable)
+            .where(eq(analysesTable.userId, input.userId)),
+        ]);
+
+        return {
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            saldo: String(user.saldo ?? "0.00"),
+            role: user.role,
+            subscriptionStatus: user.subscriptionStatus,
+            planId: user.planId,
+            createdAt: user.createdAt,
+          },
+          transactions: recentTransactions,
+          creditAnalyses: recentAnalyses,
+          stats: {
+            totalTransactions: txAgg[0]?.totalTransactions ?? 0,
+            totalAnalyses: analysesAgg[0]?.total ?? 0,
+            totalSpent: parseFloat(String(txAgg[0]?.totalSpent ?? "0")),
+            totalReceived: parseFloat(String(txAgg[0]?.totalReceived ?? "0")),
+          },
+        };
+      }),
+
+    // ── Adicionar créditos manualmente (presentear) ──
+    addCredits: protectedProcedure
+      .input(z.object({
+        userId: z.number(),
+        valor: z.number().positive("Valor deve ser positivo"),
+        descricao: z.string().min(1, "Descrição é obrigatória").max(200, "Descrição muito longa"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a administradores." });
+        }
+
+        const user = await getUserById(input.userId);
+        if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado." });
+
+        const descricaoCompleta = `${input.descricao} (Admin: ${ctx.user.email})`;
+        await creditSaldoAtomic(input.userId, input.valor, descricaoCompleta, null);
+
+        const novoSaldo = parseFloat(String(user.saldo ?? "0")) + input.valor;
+
+        console.log("[Admin] Créditos adicionados", {
+          adminId: ctx.user.id,
+          adminEmail: ctx.user.email,
+          userId: input.userId,
+          userEmail: user.email,
+          valor: input.valor,
+        });
+
+        sendCreditAddedEmail({
+          to: user.email ?? "",
+          userName: user.name ?? "Usuário",
+          valor: input.valor,
+          descricao: input.descricao,
+          novoSaldo,
+        }).catch(() => {});
+
+        return { success: true, novoSaldo };
       }),
   }),
 

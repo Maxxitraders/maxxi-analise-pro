@@ -13,6 +13,7 @@ import Planos from "./pages/Planos";
 import Assinatura from "./pages/Assinatura";
 import Admin from "./pages/Admin";
 import AdminPlanos from "./pages/AdminPlanos";
+import AdminUserDetails from "./pages/AdminUserDetails";
 import MinhaConta from "./pages/MinhaConta";
 import Carteira from "./pages/Carteira";
 import ConsultaMargemConsignavel from "./pages/ConsultaMargemConsignavel";
@@ -44,6 +45,7 @@ function Router() {
             <Route path="/assinatura" component={Assinatura} />
             <Route path="/admin" component={Admin} />
             <Route path="/admin/planos" component={AdminPlanos} />
+            <Route path="/admin/usuarios/:userId" component={AdminUserDetails} />
             <Route path="/minha-conta" component={MinhaConta} />
             <Route path="/404" component={NotFound} />
             <Route component={NotFound} />

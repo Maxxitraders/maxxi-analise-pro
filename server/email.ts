@@ -168,6 +168,61 @@ export async function verifyResendApiKey(): Promise<boolean> {
   }
 }
 
+export async function sendCreditAddedEmail(params: {
+  to: string;
+  userName: string;
+  valor: number;
+  descricao: string;
+  novoSaldo: number;
+}): Promise<boolean> {
+  const resend = getResend();
+  if (!resend) return false;
+
+  const { to, userName, valor, descricao, novoSaldo } = params;
+
+  try {
+    const { error } = await resend.emails.send({
+      from: DEFAULT_FROM,
+      to: [to],
+      subject: "Créditos adicionados à sua conta!",
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #1a1a2e; font-size: 24px; margin: 0;">Maxxi Analise Pro</h1>
+            <p style="color: #666; font-size: 14px; margin: 4px 0 0 0;">Análise de Crédito Empresarial</p>
+          </div>
+          <div style="background: #f0fdf4; border-radius: 12px; padding: 32px; border: 1px solid #bbf7d0;">
+            <h2 style="color: #166534; font-size: 20px; margin: 0 0 16px 0;">Você recebeu créditos!</h2>
+            <p style="color: #444; font-size: 15px; line-height: 1.6; margin: 0 0 12px 0;">Olá, ${userName}!</p>
+            <p style="color: #444; font-size: 15px; line-height: 1.6; margin: 0 0 8px 0;">
+              <strong>R$ ${valor.toFixed(2)}</strong> foram adicionados à sua conta.
+            </p>
+            <p style="color: #444; font-size: 14px; margin: 0 0 8px 0;"><strong>Motivo:</strong> ${descricao}</p>
+            <p style="color: #444; font-size: 14px; margin: 0 0 24px 0;"><strong>Novo saldo:</strong> R$ ${novoSaldo.toFixed(2)}</p>
+            <div style="text-align: center;">
+              <a href="https://app.maxxianalise.com/carteira"
+                 style="display: inline-block; background: #1a1a2e; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 15px; font-weight: 600;">
+                Ver Minha Carteira
+              </a>
+            </div>
+          </div>
+          <div style="text-align: center; padding-top: 16px; border-top: 1px solid #eee; margin-top: 24px;">
+            <p style="color: #aaa; font-size: 12px; margin: 0;">Este email foi enviado automaticamente pela plataforma Maxxi Analise Pro.</p>
+          </div>
+        </div>
+      `,
+    });
+    if (error) {
+      console.error("[Email] Erro ao enviar email de créditos:", error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("[Email] Exceção ao enviar email de créditos:", error);
+    return false;
+  }
+}
+
 export async function sendPaymentConfirmationEmail(params: {
   to: string;
   userName?: string;

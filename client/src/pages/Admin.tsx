@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Users, UserCheck, Crown, Package, ArrowRight, Trash2, UserX, Mail, CheckCircle, XCircle, AlertTriangle, Gift, RotateCcw, CreditCard as CreditCardIcon } from "lucide-react";
+import { Loader2, Users, UserCheck, Crown, Package, ArrowRight, Trash2, UserX, Mail, CheckCircle, XCircle, AlertTriangle, Gift, RotateCcw, CreditCard as CreditCardIcon, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -271,6 +271,7 @@ export default function Admin() {
                     <TableHead>Usuário</TableHead>
                     <TableHead>Plano</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Saldo</TableHead>
                     <TableHead className="text-center">Consultas</TableHead>
                     {activeTab === "todos" && <TableHead>Login</TableHead>}
                     <TableHead>Cadastro</TableHead>
@@ -294,6 +295,15 @@ export default function Admin() {
                           {statusLabels[u.subscriptionStatus || "none"]}
                         </Badge>
                       </TableCell>
+                      <TableCell className="text-right">
+                        <span className={`text-sm font-semibold ${
+                          parseFloat(("saldo" in u ? String(u.saldo) : "0") || "0") > 0
+                            ? "text-green-600"
+                            : "text-muted-foreground"
+                        }`}>
+                          R$ {parseFloat(("saldo" in u ? String(u.saldo) : "0") || "0").toFixed(2)}
+                        </span>
+                      </TableCell>
                       <TableCell className="text-center">
                         <span className="text-sm">
                           {u.consultasUsed || 0}
@@ -311,6 +321,15 @@ export default function Admin() {
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                            title="Ver detalhes do usuário"
+                            onClick={() => setLocation(`/admin/usuarios/${u.id}`)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
