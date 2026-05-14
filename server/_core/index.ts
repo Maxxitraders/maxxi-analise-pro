@@ -42,6 +42,9 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
+  // ── Trust Proxy (Railway / proxies reversos) ──
+  app.set("trust proxy", true);
+
   // ── Security Headers ──
   app.use(helmet({
     contentSecurityPolicy: false, // Disabled to allow Vite/React in dev
