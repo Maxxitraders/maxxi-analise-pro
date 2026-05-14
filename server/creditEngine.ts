@@ -1092,3 +1092,121 @@ function buildMockResult(
     dataSource: "simulado",
   };
 }
+
+// ── Vínculos Consignáveis ──
+
+export interface VinculoEmpresa {
+  cnpj: string;
+  nomeEmpresa: string;
+  matricula: string | null;
+  situacao: string | null;
+}
+
+export interface ConsultarVinculosResult {
+  cpf: string;
+  nomeCompleto: string | null;
+  vinculos: VinculoEmpresa[];
+  dataSource: "apifull" | "simulado";
+}
+
+export async function consultarVinculos({
+  cpf,
+  userId,
+}: {
+  cpf: string;
+  userId: number;
+}): Promise<ConsultarVinculosResult> {
+  if (!/^\d{11}$/.test(cpf)) {
+    throw new Error("CPF deve ter 11 dígitos numéricos.");
+  }
+
+  const token = ENV.apiFullToken;
+  const apiBase = process.env.API_FULL_BASE_URL ?? "https://api.apifull.com.br";
+
+  if (!token) {
+    console.info("[CreditEngine] API_FULL_TOKEN não configurado — retornando vínculos simulados.");
+    return buildMockVinculos(cpf);
+  }
+
+  console.info("[CreditEngine] Consultando vínculos consignáveis", {
+    userId,
+    cpf: cpf.slice(0, 3) + "***",
+  });
+
+  let data: any;
+  try {
+    const response = await fetch(
+      `${apiBase}/v3/operacoes/consignado-privado/consultar-vinculos`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ cpf }),
+        signal: AbortSignal.timeout(30000),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      console.error("[CreditEngine] Erro na API Full (vínculos)", {
+        status: response.status,
+        body: errorText,
+      });
+      throw new ApiUnavailableError(
+        `API de vínculos retornou HTTP ${response.status}. Tente novamente.`
+      );
+    }
+
+    data = await response.json();
+  } catch (err) {
+    if (err instanceof ApiUnavailableError) throw err;
+    console.error("[CreditEngine] Falha de rede ao consultar vínculos:", err);
+    throw new ApiUnavailableError(
+      "Não foi possível consultar os vínculos no momento. Tente novamente."
+    );
+  }
+
+  const d = data?.dados ?? data;
+  const rawVinculos: any[] = d?.vinculos ?? d?.empresas ?? d?.vinculosEmpregaticos ?? [];
+
+  const vinculos: VinculoEmpresa[] = rawVinculos.map((v: any) => ({
+    cnpj: (v.cnpj ?? v.CNPJ ?? "").replace(/\D/g, ""),
+    nomeEmpresa:
+      v.nomeEmpresa ?? v.nome_empresa ?? v.NOME_EMPRESA ??
+      v.razaoSocial ?? v.RAZAO_SOCIAL ?? v.empresa ?? "",
+    matricula: v.matricula ?? v.MATRICULA ?? null,
+    situacao: v.situacao ?? v.SITUACAO ?? null,
+  }));
+
+  return {
+    cpf: formatCpf(cpf),
+    nomeCompleto: d?.nomeCompleto ?? d?.nome_completo ?? d?.nome ?? null,
+    vinculos,
+    dataSource: "apifull",
+  };
+}
+
+function buildMockVinculos(cpf: string): ConsultarVinculosResult {
+  return {
+    cpf: formatCpf(cpf),
+    nomeCompleto: "NOME SIMULADO DA SILVA",
+    vinculos: [
+      {
+        cnpj: "29979036000140",
+        nomeEmpresa: "INSS - Instituto Nacional do Seguro Social",
+        matricula: "09613446080166608132",
+        situacao: "ATIVO",
+      },
+      {
+        cnpj: "11222333000181",
+        nomeEmpresa: "Prefeitura Municipal Simulada",
+        matricula: null,
+        situacao: "INATIVO",
+      },
+    ],
+    dataSource: "simulado",
+  };
+}

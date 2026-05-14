@@ -54,6 +54,7 @@ import {
   isHighRisk,
   ApiUnavailableError,
   consultarMargemConsignavel,
+  consultarVinculos,
   validateCpf,
 } from "./creditEngine";
 import { notifyOwner } from "./_core/notification";
@@ -1104,6 +1105,14 @@ export const appRouter = router({
           .orderBy(desc(margemConsultations.createdAt))
           .limit(input.limit)
           .offset(input.offset);
+      }),
+
+    consultarVinculos: protectedProcedure
+      .input(z.object({
+        cpf: z.string().length(11, "CPF deve ter 11 dígitos"),
+      }))
+      .query(async ({ ctx, input }) => {
+        return consultarVinculos({ cpf: input.cpf, userId: ctx.user.id });
       }),
   }),
 });

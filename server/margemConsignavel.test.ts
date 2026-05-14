@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { consultarMargemConsignavel, validateCpf } from "./creditEngine";
+import { consultarMargemConsignavel, consultarVinculos, validateCpf } from "./creditEngine";
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -237,6 +237,169 @@ describe("consultarMargemConsignavel — com token e fetch mockado", () => {
     await consultarMargemConsignavel(INPUT_VALIDO).catch(() => {});
 
     const [, options] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(options.headers["Authorization"]).toBe("Bearer token-de-teste-123");
+  });
+});
+
+// ── consultarVinculos ─────────────────────────────────────────────────────────
+
+describe("consultarVinculos — validação de entrada", () => {
+  it("lança erro para CPF com menos de 11 dígitos", async () => {
+    await expect(
+      consultarVinculos({ cpf: "123", userId: 1 })
+    ).rejects.toThrow("CPF deve ter 11 dígitos");
+  });
+
+  it("lança erro para CPF com mais de 11 dígitos", async () => {
+    await expect(
+      consultarVinculos({ cpf: "123456789012", userId: 1 })
+    ).rejects.toThrow("CPF deve ter 11 dígitos");
+  });
+
+  it("lança erro para CPF vazio", async () => {
+    await expect(
+      consultarVinculos({ cpf: "", userId: 1 })
+    ).rejects.toThrow("CPF deve ter 11 dígitos");
+  });
+});
+
+describe("consultarVinculos — modo simulado", () => {
+  beforeEach(() => {
+    vi.stubEnv("API_FULL_TOKEN", "");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("retorna dataSource=simulado quando token não configurado", async () => {
+    const result = await consultarVinculos({ cpf: CPF_VALIDO, userId: 1 });
+    expect(result.dataSource).toBe("simulado");
+  });
+
+  it("retorna CPF formatado", async () => {
+    const result = await consultarVinculos({ cpf: CPF_VALIDO, userId: 1 });
+    expect(result.cpf).toBe("529.982.247-25");
+  });
+
+  it("retorna array de vínculos não-vazio", async () => {
+    const result = await consultarVinculos({ cpf: CPF_VALIDO, userId: 1 });
+    expect(Array.isArray(result.vinculos)).toBe(true);
+    expect(result.vinculos.length).toBeGreaterThan(0);
+  });
+
+  it("cada vínculo tem cnpj, nomeEmpresa e situacao", async () => {
+    const result = await consultarVinculos({ cpf: CPF_VALIDO, userId: 1 });
+    for (const v of result.vinculos) {
+      expect(typeof v.cnpj).toBe("string");
+      expect(typeof v.nomeEmpresa).toBe("string");
+    }
+  });
+});
+
+describe("consultarVinculos — com token e fetch mockado", () => {
+  beforeEach(() => {
+    vi.stubEnv("API_FULL_TOKEN", "token-de-teste-123");
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("retorna vínculos normalizados da API", async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        nomeCompleto: "JOSE DA SILVA",
+        vinculos: [
+          { cnpj: "29.979.036/0001-40", nomeEmpresa: "INSS", matricula: "111222", situacao: "ATIVO" },
+        ],
+      }),
+    });
+
+    const result = await consultarVinculos({ cpf: CPF_VALIDO, userId: 1 });
+
+    expect(result.dataSource).toBe("apifull");
+    expect(result.nomeCompleto).toBe("JOSE DA SILVA");
+    expect(result.vinculos).toHaveLength(1);
+    expect(result.vinculos[0].cnpj).toBe("29979036000140");
+    expect(result.vinculos[0].nomeEmpresa).toBe("INSS");
+    expect(result.vinculos[0].matricula).toBe("111222");
+  });
+
+  it("aceita resposta com wrapper 'dados'", async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        dados: {
+          nomeCompleto: "MARIA SILVA",
+          vinculos: [{ cnpj: "11222333000181", nomeEmpresa: "Prefeitura", matricula: null, situacao: "ATIVO" }],
+        },
+      }),
+    });
+
+    const result = await consultarVinculos({ cpf: CPF_VALIDO, userId: 1 });
+    expect(result.nomeCompleto).toBe("MARIA SILVA");
+    expect(result.vinculos[0].nomeEmpresa).toBe("Prefeitura");
+  });
+
+  it("retorna array vazio quando API não retorna vínculos", async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ nomeCompleto: "SEM VINCULOS" }),
+    });
+
+    const result = await consultarVinculos({ cpf: CPF_VALIDO, userId: 1 });
+    expect(result.vinculos).toHaveLength(0);
+  });
+
+  it("lança ApiUnavailableError quando API retorna HTTP não-ok", async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false,
+      status: 422,
+      text: async () => "Unprocessable Entity",
+    });
+
+    await expect(consultarVinculos({ cpf: CPF_VALIDO, userId: 1 })).rejects.toThrow(
+      "API de vínculos retornou HTTP 422"
+    );
+  });
+
+  it("lança ApiUnavailableError para erro de rede", async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new TypeError("Failed to fetch")
+    );
+
+    await expect(consultarVinculos({ cpf: CPF_VALIDO, userId: 1 })).rejects.toThrow(
+      "Não foi possível consultar os vínculos"
+    );
+  });
+
+  it("usa endpoint correto /v3/operacoes/consignado-privado/consultar-vinculos", async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    });
+
+    await consultarVinculos({ cpf: CPF_VALIDO, userId: 1 }).catch(() => {});
+
+    const [url] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toContain("/v3/operacoes/consignado-privado/consultar-vinculos");
+  });
+
+  it("envia cpf no body e Authorization Bearer no header", async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    });
+
+    await consultarVinculos({ cpf: CPF_VALIDO, userId: 1 }).catch(() => {});
+
+    const [, options] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = JSON.parse(options.body as string);
+    expect(body.cpf).toBe(CPF_VALIDO);
     expect(options.headers["Authorization"]).toBe("Bearer token-de-teste-123");
   });
 });
