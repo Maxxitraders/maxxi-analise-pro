@@ -47,7 +47,7 @@ export async function handleAsaasWebhook(req: Request, res: Response) {
     const [userIdStr, planSlug] = parts;
     const userId = parseInt(userIdStr, 10);
 
-    if (!userId || !planSlug) {
+    if (!userId || isNaN(userId) || !planSlug) {
       console.log(`[Asaas Webhook] externalReference inválida: ${externalRef}`);
       return res.json({ received: true });
     }
