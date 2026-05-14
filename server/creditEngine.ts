@@ -1135,28 +1135,28 @@ export async function consultarVinculos({
 
   let data: any;
   try {
-    const response = await fetch(
-      `${apiBase}/v3/operacoes/consignado-privado/consultar-vinculos`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ cpf }),
-        signal: AbortSignal.timeout(30000),
-      }
-    );
+    const url = `${apiBase}/api/pf-localizacaocompleta`;
+    console.info("[CreditEngine] Consultando vínculos via pf-localizacaocompleta", { url });
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ cpf, link: "pf-localizacaocompleta" }),
+      signal: AbortSignal.timeout(30000),
+    });
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "");
       console.error("[CreditEngine] Erro na API Full (vínculos)", {
         status: response.status,
-        body: errorText,
+        url,
+        body: errorText.slice(0, 500),
       });
       throw new ApiUnavailableError(
-        `API de vínculos retornou HTTP ${response.status}. Tente novamente.`
+        `Não foi possível buscar os vínculos (HTTP ${response.status}). Tente novamente.`
       );
     }
 
@@ -1169,21 +1169,48 @@ export async function consultarVinculos({
     );
   }
 
-  const d = data?.dados ?? data;
-  const rawVinculos: any[] = d?.vinculos ?? d?.empresas ?? d?.vinculosEmpregaticos ?? [];
+  if (data?.status !== "sucesso" || !data?.dados) {
+    console.warn("[CreditEngine] Resposta inválida (vínculos)", {
+      status: data?.status,
+      message: data?.message,
+    });
+    throw new ApiUnavailableError(
+      "Não foi possível obter os vínculos no momento. Tente novamente."
+    );
+  }
 
-  const vinculos: VinculoEmpresa[] = rawVinculos.map((v: any) => ({
-    cnpj: (v.cnpj ?? v.CNPJ ?? "").replace(/\D/g, ""),
-    nomeEmpresa:
-      v.nomeEmpresa ?? v.nome_empresa ?? v.NOME_EMPRESA ??
-      v.razaoSocial ?? v.RAZAO_SOCIAL ?? v.empresa ?? "",
-    matricula: v.matricula ?? v.MATRICULA ?? null,
-    situacao: v.situacao ?? v.SITUACAO ?? null,
-  }));
+  const d = data.dados;
+  const vinculos: VinculoEmpresa[] = [];
+
+  // Empregadores: campo "empregador" retornado pela pf-localizacaocompleta
+  const empregadores: any[] = d.empregador ?? d.empregadores ?? [];
+  for (const e of empregadores) {
+    const cnpj = (e.cnpj ?? "").replace(/\D/g, "");
+    if (!cnpj) continue;
+    vinculos.push({
+      cnpj,
+      nomeEmpresa: e.razao_social ?? e.nome ?? "Empresa",
+      matricula: e.matricula ?? null,
+      situacao: "EMPREGADOR",
+    });
+  }
+
+  // Empresas relacionadas (sócios, proprietários)
+  const relacionadas: any[] = d.empresas_relacionadas ?? d.empresasRelacionadas ?? [];
+  for (const e of relacionadas) {
+    const cnpj = (e.cnpj ?? "").replace(/\D/g, "");
+    if (!cnpj) continue;
+    vinculos.push({
+      cnpj,
+      nomeEmpresa: e.razao_social ?? e.nome_fantasia ?? e.nome ?? "Empresa",
+      matricula: null,
+      situacao: e.grau_relacao ?? e.situacao_receita_federal ?? null,
+    });
+  }
 
   return {
     cpf: formatCpf(cpf),
-    nomeCompleto: d?.nomeCompleto ?? d?.nome_completo ?? d?.nome ?? null,
+    nomeCompleto: d.nome ?? d.nome_completo ?? d.nomeCompleto ?? null,
     vinculos,
     dataSource: "apifull",
   };
