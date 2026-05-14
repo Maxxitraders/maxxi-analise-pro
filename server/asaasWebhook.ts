@@ -44,62 +44,6 @@ export async function handleAsaasWebhook(req: Request, res: Response) {
     }
 
     const parts = externalRef.split(":");
-    
-// CASO CONTRÁRIO: formato "userId:planSlug" (compra de créditos/plano)
-  const [userIdStr, planSlug] = parts;
-  const userId = parseInt(userIdStr, 10);
-
-  if (!userId || !planSlug) {
-    console.log(`[Asaas Webhook] externalReference inválida: ${externalRef}`);
-    return res.json({ received: true });
-  }
-
-  // Pagamento confirmado/recebido → ativar créditos
-  if (isPaymentConfirmed(event)) {
-    console.log(`[Asaas Webhook] Pagamento confirmado! User: ${userId}, Plano: ${planSlug}`);
-
-    // Ativar créditos de plano
-    const plan = await getPlanBySlug(planSlug);
-    if (!plan) {
-      console.error(`[Asaas Webhook] Plano não encontrado: ${planSlug}`);
-      return res.json({ received: true });
-    }
-
-    // Ativar créditos do usuário
-    const subscriptionId = payment.subscription || payment.id;
-    
-    const { creditSaldoAtomic } = await import("./db-atomic");
-    
-    // Creditar saldo do plano comprado
-    await creditSaldoAtomic({
-      userId,
-      valor: plan.creditsAmount,
-      descricao: `Créditos do plano ${plan.name}`,
-      asaasPaymentId: payment.id
-    });
-
-    console.log(`[Asaas Webhook] Créditos adicionados! User: ${userId}, Valor: R$ ${plan.creditsAmount}`);
-
-    // Enviar email de confirmação de pagamento
-    try {
-      const user = await getUserById(userId);
-      if (user?.email) {
-        await sendPaymentConfirmationEmail({
-          to: user.email,
-          userName: user.name || undefined,
-          planName: plan.name,
-          consultasLimit: plan.consultasLimit,
-        });
-        console.log(`[Asaas Webhook] Email de confirmação enviado para: ${user.email}`);
-      }
-    } catch (error: any) {
-      console.error(`[Asaas Webhook] Erro ao enviar email:`, error.message);
-    }
-
-    return res.json({ received: true });
-  }
-
-    // CASO CONTRÁRIO: formato assinatura "userId:planSlug"
     const [userIdStr, planSlug] = parts;
     const userId = parseInt(userIdStr, 10);
 
