@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "NODE_ENV=development tsx watch server/_core/index.ts",
-    "build": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist && esbuild server/migrate.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "build": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --sourcemap --outdir=dist && esbuild server/migrate.ts --platform=node --packages=external --bundle --format=esm --sourcemap --outdir=dist",
     "start": "NODE_ENV=production node dist/migrate.js && NODE_ENV=production node dist/index.js",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
@@ -43,6 +43,7 @@
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@sentry/node": "^10.53.1",
+    "@sentry/profiling-node": "^10.53.1",
     "@sentry/react": "^10.53.1",
     "@tanstack/react-query": "^5.90.2",
     "@trpc/client": "^11.6.0",
@@ -125,6 +126,11 @@
     },
     "overrides": {
       "tailwindcss>nanoid": "3.3.7"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "@sentry-internal/node-cpu-profiler",
+      "@tailwindcss/oxide",
+      "esbuild"
+    ]
   }
 }

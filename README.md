@@ -421,9 +421,20 @@ Frontend: 15%
 
 **Recursos Ativos:**
 - ✅ Error tracking
-- ✅ Performance monitoring
-- ✅ Session replay (mascarado)
-- ✅ Release tracking
+- ✅ Performance monitoring (10% sample)
+- ✅ Profiling de CPU/memória (10% sample)
+- ✅ Session replay: 10% normal, 100% com erro
+- ✅ Network recording (bodies + headers)
+- ✅ HTTP client tracking (4xx–5xx)
+- ✅ Source maps (stack traces legíveis)
+- ✅ Filtro automático de dados sensíveis
+
+**Endpoints de teste (apenas dev):**
+- `GET /api/debug/test-sentry-error` — gera erro de teste
+- `GET /api/debug/test-sentry-transaction` — testa span/performance
+- `GET /api/debug/test-sentry-breadcrumbs` — testa breadcrumbs
+
+**Documentação completa:** [docs/SENTRY_SETUP.md](docs/SENTRY_SETUP.md)
 
 ### Logs (Winston)
 

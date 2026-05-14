@@ -17,6 +17,7 @@ import rateLimit from "express-rate-limit";
 import { globalLimiter, webhookLimiter } from "../rateLimiting";
 import { csrfMiddleware, generateCsrfToken, setCsrfCookie } from "../middleware/csrf";
 import logger from "../utils/logger";
+import sentryTestRoutes from "../routes/sentry-test";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -112,6 +113,12 @@ async function startServer() {
     await setupVite(app, server);
   } else {
     serveStatic(app);
+  }
+
+  // Rotas de debug Sentry (apenas em desenvolvimento)
+  if (process.env.NODE_ENV !== "production") {
+    app.use("/api/debug", sentryTestRoutes);
+    logger.info("Rotas de debug Sentry habilitadas: /api/debug/test-sentry-*");
   }
 
   // Sentry error handler — deve vir após todas as rotas

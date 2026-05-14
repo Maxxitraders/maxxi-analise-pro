@@ -1,8 +1,10 @@
 import * as Sentry from "@sentry/node";
+import { nodeProfilingIntegration } from "@sentry/profiling-node";
 
 const SENSITIVE_KEYS = new Set([
   "password", "passwordhash", "resettoken", "token", "apikey",
   "authorization", "secret", "cpf", "cnpj", "creditcard", "cvv", "pan",
+  "senha",
 ]);
 
 function scrubFields(obj: Record<string, unknown>): Record<string, unknown> {
@@ -31,15 +33,30 @@ function scrubEvent(event: Sentry.ErrorEvent): Sentry.ErrorEvent {
 }
 
 export function initSentry(): void {
-  if (!process.env.SENTRY_DSN) return;
+  if (!process.env.SENTRY_DSN) {
+    console.warn("SENTRY_DSN não configurado - Sentry desabilitado");
+    return;
+  }
 
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
     environment: process.env.NODE_ENV ?? "development",
     enabled: process.env.NODE_ENV === "production",
-    integrations: [Sentry.expressIntegration()],
+
+    integrations: [
+      Sentry.httpIntegration(),
+      Sentry.expressIntegration(),
+      nodeProfilingIntegration(),
+    ],
+
     tracesSampleRate: 0.1,
+    profilesSampleRate: 0.1,
+
     beforeSend: scrubEvent,
+
+    initialScope: {
+      tags: { service: "maxxi-analise-backend" },
+    },
   });
 }
 

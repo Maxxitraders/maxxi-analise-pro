@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/react";
 
 const SENSITIVE_KEYS = new Set([
   "password", "passwordhash", "resettoken", "token", "apikey",
-  "authorization", "secret", "cpf", "cnpj",
+  "authorization", "secret", "cpf", "cnpj", "senha",
 ]);
 
 function scrubFields(obj: Record<string, unknown>): Record<string, unknown> {
@@ -27,6 +27,16 @@ function scrubEvent(event: Sentry.ErrorEvent): Sentry.ErrorEvent | null {
     }
     delete event.request.cookies;
   }
+
+  if (event.breadcrumbs) {
+    event.breadcrumbs = event.breadcrumbs.map((breadcrumb) => {
+      if (breadcrumb.data) {
+        return { ...breadcrumb, data: scrubFields(breadcrumb.data as Record<string, unknown>) };
+      }
+      return breadcrumb;
+    });
+  }
+
   return event;
 }
 
@@ -38,18 +48,36 @@ export function initSentry(): void {
     dsn,
     environment: import.meta.env.MODE,
     enabled: import.meta.env.PROD,
+
     integrations: [
-      Sentry.browserTracingIntegration(),
+      Sentry.browserTracingIntegration({
+        enableInp: true,
+      }),
       Sentry.replayIntegration({
-        maskAllText: true,
-        blockAllMedia: true,
+        maskAllText: false,
+        maskAllInputs: true,
+        blockAllMedia: false,
+        mask: [".sensitive", "[data-sensitive]"],
+        block: [".private", "[data-private]"],
+        networkDetailAllowUrls: [window.location.origin],
+        networkCaptureBodies: true,
+        networkRequestHeaders: ["content-type"],
+        networkResponseHeaders: ["content-type"],
+      }),
+      Sentry.httpClientIntegration({
+        failedRequestStatusCodes: [[400, 599]],
       }),
     ],
+
     tracesSampleRate: 0.1,
-    // Replay: só grava sessão completa em erro, não monitoramento contínuo
-    replaysSessionSampleRate: 0.0,
+    replaysSessionSampleRate: 0.1,
     replaysOnErrorSampleRate: 1.0,
+
     beforeSend: scrubEvent,
+
+    initialScope: {
+      tags: { service: "maxxi-analise-frontend" },
+    },
   });
 }
 
