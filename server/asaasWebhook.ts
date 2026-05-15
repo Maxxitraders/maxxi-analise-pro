@@ -86,7 +86,7 @@ export async function handleAsaasWebhook(req: Request, res: Response) {
         // ===== NOVA FUNCIONALIDADE: RECARGA DE CRÉDITO =====
         try {
           // Converter valor para centavos (R$ 10,00 → 1000 centavos)
-          const creditsToAdd = Math.round(payment.value * 100);
+          const creditsToAdd = payment.value;
 
           console.log(`[Asaas Webhook] Creditando ${creditsToAdd} centavos para user ${userId}`);
 
