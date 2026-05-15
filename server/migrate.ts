@@ -124,7 +124,22 @@ async function migrate() {
 
     await addColumnIfNotExists("users", "cpfCnpj", "`cpfCnpj` varchar(32)");
     await addColumnIfNotExists("users", "phone", "`phone` varchar(32)");
+    await addColumnIfNotExists("users", "saldo", "`saldo` decimal(10,2) NOT NULL DEFAULT '0.00'");
     await addColumnIfNotExists("credit_analyses", "bureau", "`bureau` varchar(32) DEFAULT 'boavista'");
+
+    await conn.execute(`
+      CREATE TABLE IF NOT EXISTS \`transactions\` (
+        \`id\` int AUTO_INCREMENT NOT NULL,
+        \`userId\` int NOT NULL,
+        \`tipo\` enum('recarga','consulta','estorno') NOT NULL,
+        \`valor\` decimal(10,2) NOT NULL,
+        \`descricao\` text NOT NULL,
+        \`bureauTipo\` varchar(32),
+        \`asaasPaymentId\` varchar(128),
+        \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+        PRIMARY KEY (\`id\`)
+      )
+    `);
 
 
     // Inserir planos padrão se não existirem
@@ -134,47 +149,52 @@ async function migrate() {
       ('pro', 'Pro', 'Para empresas em crescimento', 9900, 200, '["200 consultas/mês","CPF e CNPJ","Score Boa Vista SCPC","Relatório PDF","Alertas de alto risco","Suporte prioritário"]', true, true, 2),
       ('enterprise', 'Enterprise', 'Para grandes operações', 19900, -1, '["Consultas ilimitadas","CPF e CNPJ","Score Boa Vista SCPC","Relatório PDF","Alertas de alto risco","API dedicada","Suporte 24/7"]', false, true, 3)
     `);
-    // Criar tabela margem_consultations
-  await connection.query(`
-    CREATE TABLE IF NOT EXISTS margem_consultations (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT NOT NULL,
-      cpf VARCHAR(14) NOT NULL,
-      banco VARCHAR(255),
-      margem_disponivel DECIMAL(10,2),
-      margem_compra DECIMAL(10,2),
-      margem_saque DECIMAL(10,2),
-      status VARCHAR(50) DEFAULT 'pending',
-      raw_response JSON,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      INDEX idx_user_id (user_id),
-      INDEX idx_cpf (cpf),
-      INDEX idx_status (status)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  `);
-  console.log("[Migrate] Tabela margem_consultations criada/verificada!");
+    await conn.execute(`
+      CREATE TABLE IF NOT EXISTS \`margem_consultations\` (
+        \`id\` int AUTO_INCREMENT NOT NULL,
+        \`userId\` int NOT NULL,
+        \`cpf\` varchar(14) NOT NULL,
+        \`matricula\` varchar(100),
+        \`cnpj\` varchar(14),
+        \`nomeCompleto\` varchar(255),
+        \`dataNascimento\` varchar(16),
+        \`margemDisponivel\` decimal(10,2),
+        \`margemUtilizada\` decimal(10,2),
+        \`margemTotal\` decimal(10,2),
+        \`margemCartaoDisponivel\` decimal(10,2),
+        \`margemCartaoUtilizada\` decimal(10,2),
+        \`orgao\` varchar(255),
+        \`competencia\` varchar(16),
+        \`status\` varchar(32) NOT NULL,
+        \`rawResponse\` text,
+        \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+        PRIMARY KEY (\`id\`)
+      )
+    `);
 
-  // Criar tabela serasa_consultations
-  await connection.query(`
-    CREATE TABLE IF NOT EXISTS serasa_consultations (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT NOT NULL,
-      cpf VARCHAR(14) NOT NULL,
-      nome VARCHAR(255),
-      score INT,
-      situacao_cpf VARCHAR(100),
-      pendencias_financeiras TEXT,
-      status VARCHAR(50) DEFAULT 'pending',
-      raw_response JSON,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      INDEX idx_user_id (user_id),
-      INDEX idx_cpf (cpf),
-      INDEX idx_status (status)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  `);
-  console.log("[Migrate] Tabela serasa_consultations criada/verificada!");
+    await conn.execute(`
+      CREATE TABLE IF NOT EXISTS \`serasa_consultations\` (
+        \`id\` int AUTO_INCREMENT NOT NULL,
+        \`userId\` int NOT NULL,
+        \`cpf\` varchar(11) NOT NULL,
+        \`score\` int,
+        \`scoreCategoria\` varchar(50),
+        \`nome\` varchar(255),
+        \`dataNascimento\` varchar(16),
+        \`totalPendencias\` decimal(10,2),
+        \`qtdPendencias\` int DEFAULT 0,
+        \`totalProtestos\` decimal(10,2),
+        \`qtdProtestos\` int DEFAULT 0,
+        \`totalChequesSemFundo\` decimal(10,2),
+        \`qtdChequesSemFundo\` int DEFAULT 0,
+        \`totalChequesSustados\` decimal(10,2),
+        \`qtdChequesSustados\` int DEFAULT 0,
+        \`status\` varchar(20) NOT NULL DEFAULT 'pending',
+        \`rawResponse\` text,
+        \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+        PRIMARY KEY (\`id\`)
+      )
+    `);
 
     console.log("[Migrate] ✅ Tabelas criadas com sucesso!");
   } catch (error) {
