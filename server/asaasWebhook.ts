@@ -13,9 +13,7 @@ import {
 } from "./db";
 import { getPlanBySlug } from "./products";
 import { sendPaymentConfirmationEmail } from "./email";
-import { db } from "../db";
-import { users } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { creditSaldoAtomic } from "./db-atomic";
 
 export async function handleAsaasWebhook(req: Request, res: Response) {
   try {
@@ -89,17 +87,16 @@ export async function handleAsaasWebhook(req: Request, res: Response) {
         try {
           // Converter valor para centavos (R$ 10,00 → 1000 centavos)
           const creditsToAdd = Math.round(payment.value * 100);
-          
+
           console.log(`[Asaas Webhook] Creditando ${creditsToAdd} centavos para user ${userId}`);
-          
-          // Atualizar saldo do usuário
-          await db
-            .update(users)
-            .set({
-              balance: db.$sql`balance + ${creditsToAdd}`,
-            })
-            .where(eq(users.id, userId));
-          
+
+          await creditSaldoAtomic(
+            userId,
+            creditsToAdd,
+            `Recarga via Asaas - R$ ${payment.value.toFixed(2)}`,
+            payment.id
+          );
+
           console.log(`[Asaas Webhook] ✅ Crédito adicionado com sucesso! User: ${userId}, Valor: ${creditsToAdd} centavos`);
           
           // Enviar email de confirmação de recarga
