@@ -50,7 +50,8 @@ const DEFAULTS: DadosFinanceiros = {
   patrimonioLiquido: "462,05",
   // Investimento: 11 instalações (2.200) + 11 kits rastreador/chicote/relé (2.640) + 20 ativações chip (40)
   investimentoTotal: "4880,00",
-  lucroMeta: "",
+  // Meta: 1 instalação/semana → 63 clientes em 12 meses → ~R$ 1.200/mês de lucro
+  lucroMeta: "1200,00",
   // Valor de mercado estimado conservador — atualizar conforme a empresa cresce
   valorMercado: "20000,00",
   nomeEmpresa: "Maxxi Tracker",
