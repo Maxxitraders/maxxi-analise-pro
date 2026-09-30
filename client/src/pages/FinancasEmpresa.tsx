@@ -51,8 +51,7 @@ const DEFAULTS: DadosFinanceiros = {
   // Investimento: 11 instalações (2.200) + 11 kits rastreador/chicote/relé (2.640) + 20 ativações chip (40)
   investimentoTotal: "4880,00",
   lucroMeta: "",
-  // Valor de mercado esperado na venda (~2029) para injeção na carteira de aposentadoria
-  valorMercado: "300000,00",
+  valorMercado: "",
   nomeEmpresa: "Maxxi Tracker",
 };
 
