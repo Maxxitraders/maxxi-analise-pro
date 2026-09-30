@@ -52,7 +52,7 @@ const DEFAULTS: DadosFinanceiros = {
   investimentoTotal: "4880,00",
   lucroMeta: "",
   valorMercado: "",
-  nomeEmpresa: "Max Tracker",
+  nomeEmpresa: "Maxxi Tracker",
 };
 
 function parseBR(v: string): number {
