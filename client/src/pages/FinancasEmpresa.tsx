@@ -46,12 +46,13 @@ const DEFAULTS: DadosFinanceiros = {
   custosVariaveis: "87,78",
   // Fixos: MaxTracker (60) + Chips M2M (54) + Freelancer mkt (500) + Facebook Ads (480) + Contador (300)
   custosFixos: "1394,00",
-  patrimonioLiquido: "",
+  // PL: 11 kits em comodato pelo custo de aquisição (ativo principal, sem dívidas)
+  patrimonioLiquido: "2640,00",
   // Investimento: 11 instalações (2.200) + 11 kits rastreador/chicote/relé (2.640) + 20 ativações chip (40)
   investimentoTotal: "4880,00",
   lucroMeta: "",
   valorMercado: "",
-  nomeEmpresa: "",
+  nomeEmpresa: "Max Tracker",
 };
 
 function parseBR(v: string): number {
