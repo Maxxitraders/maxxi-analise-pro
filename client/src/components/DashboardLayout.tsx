@@ -35,7 +35,7 @@ const mainMenuItems = [
   { icon: Search, label: "Nova Consulta", path: "/consulta" },
   { icon: FileSearch, label: "Serasa Premium", path: "/consulta-serasa" },
   { icon: History, label: "Histórico", path: "/historico" },
-  { icon: Building2, label: "Finanças", path: "/financas" },
+  { icon: Building2, label: "Finanças", path: "/financas", adminOnly: true },
 ];
 
 const accountMenuItems = [
@@ -158,7 +158,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
           <SidebarContent className="gap-0 mt-2">
             {/* Main Menu */}
             <SidebarMenu className="px-2 py-1 space-y-1">
-              {mainMenuItems.map(item => {
+              {mainMenuItems.filter(item => !item.adminOnly || isAdmin).map(item => {
                 const isActive = location === item.path;
                 return (
                   <SidebarMenuItem key={item.path}>

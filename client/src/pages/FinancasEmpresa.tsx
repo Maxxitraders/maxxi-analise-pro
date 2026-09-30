@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -166,6 +168,15 @@ function Field({ label, id, value, onChange, placeholder = "0,00", prefix = "R$"
 }
 
 export default function FinancasEmpresa() {
+  const { user, loading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!loading && user?.role !== "admin") {
+      setLocation("/");
+    }
+  }, [loading, user, setLocation]);
+
   const [dados, setDados] = useState<DadosFinanceiros>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -175,6 +186,8 @@ export default function FinancasEmpresa() {
     }
   });
   const [saved, setSaved] = useState(false);
+
+  if (loading || user?.role !== "admin") return null;
 
   const set = useCallback((key: keyof DadosFinanceiros) => (v: string) => {
     setDados((prev) => ({ ...prev, [key]: v }));
