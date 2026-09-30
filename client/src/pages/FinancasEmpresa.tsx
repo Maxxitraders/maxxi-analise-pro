@@ -51,7 +51,8 @@ const DEFAULTS: DadosFinanceiros = {
   // Investimento: 11 instalações (2.200) + 11 kits rastreador/chicote/relé (2.640) + 20 ativações chip (40)
   investimentoTotal: "4880,00",
   lucroMeta: "",
-  valorMercado: "",
+  // Valor de mercado estimado conservador — atualizar conforme a empresa cresce
+  valorMercado: "20000,00",
   nomeEmpresa: "Maxxi Tracker",
 };
 
