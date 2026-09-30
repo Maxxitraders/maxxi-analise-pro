@@ -40,11 +40,15 @@ interface DadosFinanceiros {
 }
 
 const DEFAULTS: DadosFinanceiros = {
-  receitaBruta: "",
-  custosVariaveis: "",
-  custosFixos: "",
+  // Receita: 11 clientes × R$ 53,00 (mensalidade com desconto pontualidade)
+  receitaBruta: "583,00",
+  // Variáveis por cliente: Asaas mensagem (0,99) + cartão (2,82) + NF (0,99) + imposto 6% (3,18) = R$ 7,98 × 11
+  custosVariaveis: "87,78",
+  // Fixos: MaxTracker (60) + Chips M2M (54) + Freelancer mkt (500) + Facebook Ads (480) + Contador (300)
+  custosFixos: "1394,00",
   patrimonioLiquido: "",
-  investimentoTotal: "",
+  // Investimento: 11 instalações (2.200) + 11 kits rastreador/chicote/relé (2.640) + 20 ativações chip (40)
+  investimentoTotal: "4880,00",
   lucroMeta: "",
   valorMercado: "",
   nomeEmpresa: "",
