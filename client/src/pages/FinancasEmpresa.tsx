@@ -46,8 +46,8 @@ const DEFAULTS: DadosFinanceiros = {
   custosVariaveis: "87,78",
   // Fixos: MaxTracker (60) + Chips M2M (54) + Freelancer mkt (500) + Facebook Ads (480) + Contador (300)
   custosFixos: "1394,00",
-  // PL: 11 kits (R$ 2.640) − parcelas abertas no cartão (R$ 800) = R$ 1.840
-  patrimonioLiquido: "1840,00",
+  // PL: 11 kits (R$ 2.640) − parcelas abertas no cartão (R$ 2.177,95) = R$ 462,05
+  patrimonioLiquido: "462,05",
   // Investimento: 11 instalações (2.200) + 11 kits rastreador/chicote/relé (2.640) + 20 ativações chip (40)
   investimentoTotal: "4880,00",
   lucroMeta: "",
