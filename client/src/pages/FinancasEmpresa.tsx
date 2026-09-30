@@ -245,8 +245,8 @@ export default function FinancasEmpresa() {
   const yieldMensal = roi; // % ao mês sobre investimento total
   const yieldAnual = ((1 + yieldMensal / 100) ** 12 - 1) * 100; // composto
   const yieldMeta = meta > 0 && investimento > 0 ? (meta / investimento) * 100 : 0;
-  const receitaParaZero = custosVar + custosFixos; // receita necessária para lucro = 0
-  const faltaParaZero = Math.max(0, receitaParaZero - receita); // quanto falta
+  const receitaParaZero = custosVar + custosFixos;
+  const faltaParaZero = Math.max(0, receitaParaZero - receita);
 
   const hasData = receita > 0 || custosVar > 0 || custosFixos > 0;
 
