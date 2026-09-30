@@ -17,6 +17,7 @@ import AdminUserDetails from "./pages/AdminUserDetails";
 import MinhaConta from "./pages/MinhaConta";
 import Carteira from "./pages/Carteira";
 import ConsultaSerasa from "./pages/ConsultaSerasa";
+import FinancasEmpresa from "./pages/FinancasEmpresa";
 import Login from "./pages/Login";
 import Cadastro from "./pages/Cadastro";
 import RecuperarSenha from "./pages/RecuperarSenha";
@@ -42,6 +43,7 @@ function Router() {
             <Route path="/planos" component={Planos} />
             <Route path="/carteira" component={Carteira} />
             <Route path="/consulta-serasa" component={ConsultaSerasa} />
+            <Route path="/financas" component={FinancasEmpresa} />
             <Route path="/assinatura" component={Assinatura} />
             <Route path="/admin" component={Admin} />
             <Route path="/admin/planos" component={AdminPlanos} />
