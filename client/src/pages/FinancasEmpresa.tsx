@@ -241,6 +241,13 @@ export default function FinancasEmpresa() {
   const atingimentoMeta = meta > 0 ? (lucroLiquido / meta) * 100 : 0;
   const retornoSobrePL = pl > 0 ? (lucroLiquido / pl) * 100 : 0;
 
+  // Taxa de Retorno
+  const yieldMensal = roi; // % ao mês sobre investimento total
+  const yieldAnual = ((1 + yieldMensal / 100) ** 12 - 1) * 100; // composto
+  const yieldMeta = meta > 0 && investimento > 0 ? (meta / investimento) * 100 : 0;
+  const receitaParaZero = custosVar + custosFixos; // receita necessária para lucro = 0
+  const faltaParaZero = Math.max(0, receitaParaZero - receita); // quanto falta
+
   const hasData = receita > 0 || custosVar > 0 || custosFixos > 0;
 
   return (
@@ -478,6 +485,55 @@ export default function FinancasEmpresa() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Taxa de Retorno do Negócio */}
+          {receita > 0 && investimento > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Taxa de Retorno do Negócio
+                </CardTitle>
+                <CardDescription className="text-xs">Yield sobre o capital investido no negócio</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <MetricCard
+                    icon={<Percent className="h-4 w-4" />}
+                    title="Yield Mensal"
+                    value={fmtPct(yieldMensal)}
+                    subtitle="% ao mês s/ investido"
+                    color={yieldMensal >= 2 ? "green" : yieldMensal >= 0 ? "yellow" : "red"}
+                    tooltip="Lucro Líquido ÷ Investimento Total × 100. Quanto seu negócio rende por mês sobre o capital aplicado."
+                  />
+                  <MetricCard
+                    icon={<TrendingUp className="h-4 w-4" />}
+                    title="Yield Anual"
+                    value={fmtPct(yieldAnual)}
+                    subtitle="% ao ano (composto)"
+                    color={yieldAnual >= 24 ? "green" : yieldAnual >= 0 ? "yellow" : "red"}
+                    tooltip="((1 + Yield Mensal)^12 − 1) × 100. Rentabilidade anual composta se o resultado mensal se mantiver."
+                  />
+                  <MetricCard
+                    icon={<Target className="h-4 w-4" />}
+                    title="Yield na Meta"
+                    value={yieldMeta > 0 ? fmtPct(yieldMeta) : "—"}
+                    subtitle="% ao mês ao atingir meta"
+                    color={yieldMeta >= 2 ? "green" : yieldMeta > 0 ? "yellow" : "default"}
+                    tooltip={`Quando atingir ${fmtBRL(meta)}/mês de lucro, o yield mensal sobre o investimento será ${fmtPct(yieldMeta)}.`}
+                  />
+                  <MetricCard
+                    icon={<DollarSign className="h-4 w-4" />}
+                    title="Falta p/ Yield Positivo"
+                    value={lucroLiquido >= 0 ? "Positivo ✓" : fmtBRL(faltaParaZero)}
+                    subtitle={lucroLiquido >= 0 ? "Negócio lucrativo" : "em receita adicional"}
+                    color={lucroLiquido >= 0 ? "green" : "red"}
+                    tooltip="Quanto de receita extra é necessária para o yield sair do negativo (cobrir todos os custos)."
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Retorno do Investimento */}
           <Card>
