@@ -42,16 +42,16 @@ interface DadosFinanceiros {
 }
 
 const DEFAULTS: DadosFinanceiros = {
-  // Receita: 14 clientes × R$ 53,00 (mensalidade com desconto pontualidade) — +1 instalação em 01/10/2026
-  receitaBruta: "742,00",
-  // Variáveis por cliente: Asaas mensagem (0,99) + cartão (2,82) + NF (0,99) + imposto 6% (3,18) = R$ 7,98 × 14
-  custosVariaveis: "111,72",
+  // Receita: 17 clientes × R$ 53,00 (mensalidade com desconto pontualidade) — +3 instalações em 02/10/2026
+  receitaBruta: "901,00",
+  // Variáveis por cliente: Asaas mensagem (0,99) + cartão (2,82) + NF (0,99) + imposto 6% (3,18) = R$ 7,98 × 17
+  custosVariaveis: "135,66",
   // Fixos: MaxTracker (60) + Chips M2M (54) + Freelancer mkt (500) + Facebook Ads (480) + Contador (300) + 5 kits parcelados 8×R$144,29
   custosFixos: "1538,29",
   // PL: 16 kits em ativos (R$3.794,32) − parcelas abertas antigas + 8 novas parcelas kits (R$3.332,27) = R$462,05
   patrimonioLiquido: "462,05",
-  // Investimento: 14 instalações (2.800) + 16 kits rastreador/chicote/relé (4.034,32) + chip activations (40)
-  investimentoTotal: "6874,32",
+  // Investimento: 17 instalações (3.400) + 16 kits rastreador/chicote/relé (4.034,32) + chip activations (40)
+  investimentoTotal: "7474,32",
   // Meta: 1 instalação/semana → 63 clientes em 12 meses → ~R$ 1.200/mês de lucro
   lucroMeta: "1200,00",
   // Valor de mercado estimado conservador — atualizar conforme a empresa cresce
