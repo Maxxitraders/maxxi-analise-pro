@@ -28,7 +28,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-const STORAGE_KEY = "maxxi-financas-empresa";
+const STORAGE_KEY = "maxxi-financas-empresa-v2";
 
 interface DadosFinanceiros {
   receitaBruta: string;
