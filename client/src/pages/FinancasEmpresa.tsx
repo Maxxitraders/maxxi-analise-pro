@@ -48,9 +48,10 @@ const DEFAULTS: DadosFinanceiros = {
   custosVariaveis: "135,66",
   // Fixos: MaxTracker (60) + Chips M2M (54) + Freelancer mkt (500) + Facebook Ads (480) + Contador (300) + 5 kits 8×R$144,29 + 5 kits 8×R$143,70
   custosFixos: "1681,99",
-  // PL: 16 kits ativos (R$3.794,32) − parcelas abertas + novos 5 kits 8×R$143,70 financiados (ativo=dívida, PL +R$0) = R$462,05
+  // PL: 25 kits total (17 instalados + 8 em estoque) — lotes financiados ativo=dívida, PL +R$0 = R$462,05
   patrimonioLiquido: "462,05",
-  // Investimento: 17 instalações (3.400) + 16 kits antigos (4.034,32) + chip activations (40) + 5 kits novos 8×R$143,70 (1.149,60)
+  // Investimento: 17 instalações×R$200 (3.400) + 15 kits originais+lote1 (4.034,32) + chip activations (40) + 5 kits lote2 8×R$143,70 (1.149,60)
+  // Total: 25 kits (17 instalados + 8 em estoque prontos). Quando instalar os 8: +R$1.600 em instalações
   investimentoTotal: "8623,92",
   // Meta: 1 instalação/semana → 63 clientes em 12 meses → ~R$ 1.200/mês de lucro
   lucroMeta: "1200,00",
