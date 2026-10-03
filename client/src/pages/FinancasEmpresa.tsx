@@ -42,19 +42,19 @@ interface DadosFinanceiros {
 }
 
 const DEFAULTS: DadosFinanceiros = {
-  // Receita: 17 clientes × R$ 53,00 (mensalidade com desconto pontualidade) — +3 instalações em 02/10/2026
-  receitaBruta: "901,00",
-  // Variáveis por cliente: Asaas mensagem (0,99) + cartão (2,82) + NF (0,99) + imposto 6% (3,18) = R$ 7,98 × 17
-  custosVariaveis: "135,66",
+  // Receita: 18 clientes × R$ 53,00 (mensalidade com desconto pontualidade) — +1 instalação em 03/10/2026
+  receitaBruta: "954,00",
+  // Variáveis por cliente: Asaas mensagem (0,99) + cartão (2,82) + NF (0,99) + imposto 6% (3,18) = R$ 7,98 × 18
+  custosVariaveis: "143,64",
   // Fixos: MaxTracker (60) + Chips M2M (54) + Freelancer mkt (500) + Facebook Ads R$150/sem×4 (600) + Contador (300) + 5 kits 8×R$144,29 + 5 kits 8×R$143,70
   // Ads: mês 2 iniciado semana passada — aumentou de R$120/sem para R$150/sem
   custosFixos: "1801,99",
-  // PL: 25 kits total (17 instalados + 8 em estoque) — lotes financiados ativo=dívida, PL +R$0 = R$462,05
+  // PL: 25 kits total (18 instalados + 7 em estoque) — lotes financiados ativo=dívida, PL +R$0 = R$462,05
   patrimonioLiquido: "462,05",
-  // Investimento hardware: 17 instalações×R$200 (3.400) + 15 kits orig+lote1 (4.034,32) + chips (40) + 5 kits lote2 (1.149,60)
+  // Investimento hardware: 18 instalações×R$200 (3.600) + 15 kits orig+lote1 (4.034,32) + chips (40) + 5 kits lote2 (1.149,60)
   // + Propaganda acumulada mês 1: freela 2×R$500 (1.000) + Facebook 5sem×R$120 (600) = R$1.600
-  // Total: 25 kits (17 instalados + 8 em estoque). Quando instalar os 8: +R$1.600 em instalações
-  investimentoTotal: "10223,92",
+  // Total: 25 kits (18 instalados + 7 em estoque). Quando instalar os 7: +R$1.400 em instalações
+  investimentoTotal: "10423,92",
   // Meta: 1 instalação/semana → 63 clientes em 12 meses → ~R$ 1.200/mês de lucro
   lucroMeta: "1200,00",
   // Valor de mercado estimado conservador — atualizar conforme a empresa cresce
