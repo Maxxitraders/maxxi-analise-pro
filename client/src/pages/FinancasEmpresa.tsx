@@ -51,10 +51,11 @@ const DEFAULTS: DadosFinanceiros = {
   custosFixos: "1801,99",
   // PL: 25 kits total (18 instalados + 7 em estoque) — lotes financiados ativo=dívida, PL +R$0 = R$462,05
   patrimonioLiquido: "462,05",
-  // Investimento hardware: 18 instalações×R$200 (3.600) + 15 kits orig+lote1 (4.034,32) + chips (40) + 5 kits lote2 (1.149,60)
-  // + Propaganda acumulada mês 1: freela 2×R$500 (1.000) + Facebook 5sem×R$120 (600) = R$1.600
-  // Total: 25 kits (18 instalados + 7 em estoque). Quando instalar os 7: +R$1.400 em instalações
-  investimentoTotal: "10423,92",
+  // Ativo imobilizado: 18 instalações×R$200 (3.600) + 15 kits orig+lote1 (4.034,32) + chips (40) + 5 kits lote2 (1.149,60)
+  // Propaganda é despesa operacional (DRE), não ativo — padrão contábil (CPC/IFRS)
+  // CAC: ~R$88/cliente (propaganda mês 1 R$1.600 ÷ 18 clientes)
+  // Quando instalar os 7 em estoque: +R$1.400 em instalações
+  investimentoTotal: "8823,92",
   // Meta: 1 instalação/semana → 63 clientes em 12 meses → ~R$ 1.200/mês de lucro
   lucroMeta: "1200,00",
   // Valor de mercado estimado conservador — atualizar conforme a empresa cresce
