@@ -53,7 +53,7 @@ const DEFAULTS: DadosFinanceiros = {
   patrimonioLiquido: "462,05",
   // Ativo imobilizado: 19 instalações×R$200 (3.800) + 15 kits orig+lote1 (4.034,32) + chips (40) + 5 kits lote2 (1.149,60)
   // Propaganda é despesa operacional (DRE), não ativo — padrão contábil (CPC/IFRS)
-  // CAC ads real: R$1.600 ÷ 8 clientes incrementais = R$200/cliente
+  // CAC ads real: R$1.600 ÷ 9 clientes incrementais = R$177,78/cliente
   // Quando instalar os 5 em estoque: +R$1.000 em instalações
   investimentoTotal: "9023,92",
   // Meta: 1 instalação/semana → 63 clientes em 12 meses → ~R$ 1.200/mês de lucro
