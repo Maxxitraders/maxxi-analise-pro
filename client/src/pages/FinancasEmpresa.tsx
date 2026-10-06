@@ -49,12 +49,12 @@ const DEFAULTS: DadosFinanceiros = {
   // Fixos: MaxTracker (60) + Chips M2M (54) + Freelancer mkt (500) + Facebook Ads R$150/sem×4 (600) + Contador (300) + 5 kits 8×R$144,29 + 5 kits 8×R$143,70
   // Ads: mês 2 em curso — R$150/sem
   custosFixos: "1801,99",
-  // PL: 24 kits total (19 instalados + 5 em estoque) — lotes financiados ativo=dívida, PL +R$0 = R$462,05
+  // PL: 25 kits total (19 instalados + 6 em estoque, 1 agendado sexta) — lotes financiados ativo=dívida, PL +R$0 = R$462,05
   patrimonioLiquido: "462,05",
   // Ativo imobilizado: 19 instalações×R$200 (3.800) + 15 kits orig+lote1 (4.034,32) + chips (40) + 5 kits lote2 (1.149,60)
   // Propaganda é despesa operacional (DRE), não ativo — padrão contábil (CPC/IFRS)
   // CAC ads real: R$1.600 ÷ 9 clientes incrementais = R$177,78/cliente
-  // Quando instalar os 5 em estoque: +R$1.000 em instalações
+  // Quando instalar os 6 em estoque: +R$1.200 em instalações (próximo: sexta)
   investimentoTotal: "9023,92",
   // Meta: 1 instalação/semana → 63 clientes em 12 meses → ~R$ 1.200/mês de lucro
   lucroMeta: "1200,00",
