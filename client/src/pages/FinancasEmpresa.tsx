@@ -46,9 +46,12 @@ const DEFAULTS: DadosFinanceiros = {
   receitaBruta: "1007,00",
   // Variáveis por cliente: Asaas mensagem (0,99) + cartão (2,82) + NF (0,99) + imposto 6% (3,18) = R$ 7,98 × 19
   custosVariaveis: "151,62",
-  // Fixos: MaxTracker (60) + Chips M2M (54) + Freelancer mkt (500) + Facebook Ads R$150/sem×4 (600) + Contador (300) + lote1 8×R$144,29 + lote2 8×R$143,70 + lote3 8×R$167,50
+  // Fixos: MaxTracker (60) + Chips M2M (54) + Freelancer mkt (500) + Facebook Ads R$150/sem×4 (600) + Contador (300)
+  //   parcelas hw (term.Jan/27): 10×R$160,12 + 10×R$51,27 + 10×R$31,29 + 10×R$22,43 — pagando 7ª este mês
+  //   parcelas hw (term.Mar/27): 10×R$77,98 — pagando 5ª este mês
+  //   lote3 (term.Jun/27): 8×R$167,50 — pagando 1ª este mês
   // Ads: mês 2 em curso — R$150/sem
-  custosFixos: "1969,49",
+  custosFixos: "2024,59",
   // PL: 31 kits total (19 instalados + 12 em estoque, 1 agendado sexta) — lotes financiados ativo=dívida, PL +R$0 = R$462,05
   patrimonioLiquido: "462,05",
   // Ativo imobilizado: 19 instalações×R$200 (3.800) + 15 kits orig+lote1 (4.034,32) + chips (40) + 6 kits lote2 (1.149,60) + 6 kits lote3 (1.340,00)
