@@ -46,16 +46,26 @@ const DEFAULTS: DadosFinanceiros = {
   receitaBruta: "1007,00",
   // Variáveis por cliente: Asaas mensagem (0,99) + cartão (2,82) + NF (0,99) + imposto 6% (3,18) = R$ 7,98 × 19
   custosVariaveis: "151,62",
-  // Fixos: MaxTracker (60) + Chips M2M (54) + Freelancer mkt (500) + Facebook Ads R$150/sem×4 (600) + Contador (300) + 5 kits 8×R$144,29 + 5 kits 8×R$143,70
-  // Ads: mês 2 em curso — R$150/sem
-  custosFixos: "1801,99",
-  // PL: 25 kits total (19 instalados + 6 em estoque, 1 agendado sexta) — lotes financiados ativo=dívida, PL +R$0 = R$462,05
+  // Fixos: MaxTracker (60) + Chips M2M (54) + Freela mkt (500) + Facebook Ads R$150/sem×4 (600) + Contador (300) = R$1.514
+  //   Parcelas hardware — 8 financiamentos:
+  //   A: 10×R$160,12 — 7ª/10 em Out/26 — term. Jan/2027
+  //   B: 10×R$51,27  — 7ª/10 em Out/26 — term. Jan/2027
+  //   C: 10×R$31,29  — 7ª/10 em Out/26 — term. Jan/2027
+  //   D: 10×R$22,43  — 7ª/10 em Out/26 — term. Jan/2027
+  //   E: 10×R$77,98  — 5ª/10 em Out/26 — term. Mar/2027
+  //   F:  8×R$124,10 — começa Nov/2026  — term. Jun/2027  (R$0 em Out/26)
+  //   G:  8×R$143,74 — começa Nov/2026  — term. Jun/2027  (R$0 em Out/26)
+  //   H:  8×R$167,50 — 1ª/8  em Out/26 — term. Mai/2027  (lote 3 — comprado 07/10/2026)
+  //   Out/26: 1.514 + 160,12+51,27+31,29+22,43+77,98+167,50 = 2.024,59
+  //   Nov/26+: +F(124,10)+G(143,74) = 2.292,43
+  custosFixos: "2024,59",   // valor de Outubro (F e G começam em Nov/26)
+  // PL: 31 kits total (19 instalados + 12 em estoque, 1 agendado sexta) — lotes financiados ativo=dívida, PL +R$0 = R$462,05
   patrimonioLiquido: "462,05",
-  // Ativo imobilizado: 19 instalações×R$200 (3.800) + 15 kits orig+lote1 (4.034,32) + chips (40) + 5 kits lote2 (1.149,60)
+  // Ativo imobilizado: 19 instalações×R$200 (3.800) + 15 kits orig+lote1 (4.034,32) + chips (40) + 6 kits lote2 (1.149,60) + 6 kits lote3 (1.340,00)
   // Propaganda é despesa operacional (DRE), não ativo — padrão contábil (CPC/IFRS)
   // CAC ads real: R$1.600 ÷ 9 clientes incrementais = R$177,78/cliente
-  // Quando instalar os 6 em estoque: +R$1.200 em instalações (próximo: sexta)
-  investimentoTotal: "9023,92",
+  // Quando instalar os 12 em estoque: +R$2.400 em instalações (próximo: sexta)
+  investimentoTotal: "10363,92",
   // Meta: 1 instalação/semana → 63 clientes em 12 meses → ~R$ 1.200/mês de lucro
   lucroMeta: "1200,00",
   // Valor de mercado estimado conservador — atualizar conforme a empresa cresce
