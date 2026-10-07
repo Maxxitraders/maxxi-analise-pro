@@ -42,10 +42,10 @@ interface DadosFinanceiros {
 }
 
 const DEFAULTS: DadosFinanceiros = {
-  // Receita: 22 clientes × R$ 53,00 (mensalidade com desconto pontualidade)
-  receitaBruta: "1166,00",
-  // Variáveis por cliente: Asaas mensagem (0,99) + cartão (2,82) + NF (0,99) + imposto 6% (3,18) = R$ 7,98 × 22
-  custosVariaveis: "175,56",
+  // Receita: 22 clientes — 21 pagantes × R$ 53,00 + 1 isento (indicou clientes)
+  receitaBruta: "1113,00",
+  // Variáveis por cliente: Asaas mensagem (0,99) + cartão (2,82) + NF (0,99) + imposto 6% (3,18) = R$ 7,98 × 21 pagantes
+  custosVariaveis: "167,58",
   // Fixos: MaxTracker (75) + Chips M2M (81) + Freela mkt (500) + Facebook Ads R$150/sem×4 (600) + Contador (300) = R$1.556
   //   MaxTracker: subiu de R$60 para R$75 a partir de Out/2026
   //   Chips M2M: subiu de R$54 para R$81 a partir de Out/2026
