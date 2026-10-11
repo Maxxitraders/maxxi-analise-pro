@@ -46,9 +46,9 @@ const DEFAULTS: DadosFinanceiros = {
   receitaBruta: "1166,00",
   // Variáveis por cliente: Asaas mensagem (0,99) + cartão (2,82) + NF (0,99) + imposto 6% (3,18) = R$ 7,98 × 22 pagantes
   custosVariaveis: "175,56",
-  // Fixos: MaxTracker (75) + Chips M2M (81) + Freela mkt (500) + Facebook Ads R$150/sem×4 (600) + Contador (300) = R$1.556
-  //   MaxTracker: subiu de R$60 para R$75 a partir de Out/2026
-  //   Chips M2M: subiu de R$54 para R$81 a partir de Out/2026
+  // Fixos: MaxTracker (90) + Chips M2M (90) + Freela mkt (500) + Facebook Ads R$150/sem×4 (600) + Contador (300) = R$1.580
+  //   MaxTracker: subiu de R$75 para R$90 a partir de Out/2026 (2ª alta)
+  //   Chips M2M: subiu de R$81 para R$90 a partir de Out/2026 (2ª alta)
   //   Parcelas hardware — 8 financiamentos:
   //   A: 10×R$160,12 — 7ª/10 em Out/26 — term. Jan/2027
   //   B: 10×R$51,27  — 7ª/10 em Out/26 — term. Jan/2027
@@ -58,9 +58,9 @@ const DEFAULTS: DadosFinanceiros = {
   //   F:  8×R$124,10 — começa Nov/2026  — term. Jun/2027  (R$0 em Out/26)
   //   G:  8×R$143,74 — começa Nov/2026  — term. Jun/2027  (R$0 em Out/26)
   //   H:  8×R$167,50 — 1ª/8  em Out/26 — term. Mai/2027  (lote 3 — comprado 07/10/2026)
-  //   Out/26: 1.556 + 160,12+51,27+31,29+22,43+77,98+167,50 = 2.066,59
-  //   Nov/26+: +F(124,10)+G(143,74) = 2.334,43
-  custosFixos: "2066,59",   // valor de Outubro (F e G começam em Nov/26)
+  //   Out/26: 1.580 + 160,12+51,27+31,29+22,43+77,98+167,50 = 2.090,59
+  //   Nov/26+: +F(124,10)+G(143,74) = 2.358,43
+  custosFixos: "2090,59",   // valor de Outubro (F e G começam em Nov/26)
   // PL: 31 kits total (23 instalados + 8 em estoque) — lotes financiados ativo=dívida, PL +R$0 = R$162,05
   patrimonioLiquido: "162,05",
   // Ativo imobilizado: 20 instalações×R$200 (4.000) + 3 instalações×R$50 (150, gasolina — próprio) + 15 kits orig+lote1 (4.034,32) + chips (40) + 6 kits lote2 (1.149,60) + 6 kits lote3 (1.340,00)
