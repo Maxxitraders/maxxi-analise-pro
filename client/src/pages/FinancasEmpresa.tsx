@@ -42,10 +42,10 @@ interface DadosFinanceiros {
 }
 
 const DEFAULTS: DadosFinanceiros = {
-  // Receita: 26 clientes — 25 pagantes × R$ 53,00 + 1 isento (Edimilson — indicou clientes, Out/26)
-  receitaBruta: "1325,00",
-  // Variáveis por cliente: Asaas mensagem (0,99) + cartão (2,82) + NF (0,99) + imposto 6% (3,18) = R$ 7,98 × 25 pagantes
-  custosVariaveis: "199,50",
+  // Receita: 27 clientes — 26 pagantes × R$ 53,00 + 1 isento (Edimilson — indicou clientes, Out/26)
+  receitaBruta: "1378,00",
+  // Variáveis por cliente: Asaas mensagem (0,99) + cartão (2,82) + NF (0,99) + imposto 6% (3,18) = R$ 7,98 × 26 pagantes
+  custosVariaveis: "207,48",
   // Fixos: MaxTracker (90) + Chips M2M (90) + Freela mkt (500) + Facebook Ads R$150/sem×4 (600) + Contador (300) = R$1.580
   //   MaxTracker: subiu de R$75 para R$90 a partir de Out/2026 (2ª alta)
   //   Chips M2M: subiu de R$81 para R$90 a partir de Out/2026 (2ª alta)
@@ -61,13 +61,13 @@ const DEFAULTS: DadosFinanceiros = {
   //   Out/26: 1.580 + 160,12+51,27+31,29+22,43+77,98+167,50 = 2.090,59
   //   Nov/26+: +F(124,10)+G(143,74) = 2.358,43
   custosFixos: "2090,59",   // valor de Outubro (F e G começam em Nov/26)
-  // PL: 31 kits total (26 instalados + 5 em estoque) — lotes financiados ativo=dívida, PL +R$0 = R$312,05
+  // PL: 31 kits total (27 instalados + 4 em estoque) — lotes financiados ativo=dívida, PL +R$0 = R$312,05
   patrimonioLiquido: "312,05",
-  // Ativo imobilizado: 20 instalações×R$200 (4.000) + 6 instalações×R$50 (300, gasolina — próprio) + 15 kits orig+lote1 (4.034,32) + chips (40) + 6 kits lote2 (1.149,60) + 6 kits lote3 (1.340,00)
+  // Ativo imobilizado: 21 instalações×R$200 (4.200) + 6 instalações×R$50 (300, gasolina — próprio) + 15 kits orig+lote1 (4.034,32) + chips (40) + 6 kits lote2 (1.149,60) + 6 kits lote3 (1.340,00)
   // Custo de instalação: R$50 (gasolina) quando feito pelo Eraldo; R$200 quando paga instalador
   // Propaganda é despesa operacional (DRE), não ativo — padrão contábil (CPC/IFRS)
-  // Quando instalar os 5 em estoque: +R$50 cada (próprio) ou +R$200 (instalador)
-  investimentoTotal: "10863,92",
+  // Quando instalar os 4 em estoque: +R$50 cada (próprio) ou +R$200 (instalador)
+  investimentoTotal: "11063,92",
   // Meta: 1 instalação/semana → 63 clientes em 12 meses → ~R$ 1.200/mês de lucro
   lucroMeta: "1200,00",
   // Valor de mercado estimado conservador — atualizar conforme a empresa cresce
