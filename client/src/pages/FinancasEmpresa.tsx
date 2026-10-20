@@ -62,14 +62,14 @@ const DEFAULTS: DadosFinanceiros = {
   //   Out/26: 1.580 + 160,12+51,27+31,29+22,43+77,98+167,50 = 2.090,59
   //   Nov/26+: +F(124,10)+G(143,74)+I(143,00) = 2.501,43 (com freela) / 2.001,43 (sem freela)
   custosFixos: "2090,59",   // valor de Outubro (F, G e I começam em Nov/26)
-  // PL: 36 kits total (28 instalados + 8 em estoque) — lotes financiados ativo=dívida, PL +R$0
-  //     7 instalações próprias (Eraldo) × R$50 = R$350 contribuição de capital → PL = R$362,05
-  patrimonioLiquido: "362,05",
-  // Ativo imobilizado: 21 instalações×R$200 (4.200) + 7 instalações×R$50 (350, gasolina — próprio) + 15 kits orig+lote1 (4.034,32) + chips (40) + 6 kits lote2 (1.149,60) + 6 kits lote3 (1.340,00) + 5 kits lote4 (1.144,00)
+  // PL: 36 kits total (29 instalados + 7 em estoque) — lotes financiados ativo=dívida, PL +R$0
+  //     8 instalações próprias (Eraldo) × R$50 = R$400 contribuição de capital → PL = R$412,05
+  patrimonioLiquido: "412,05",
+  // Ativo imobilizado: 21 instalações×R$200 (4.200) + 8 instalações×R$50 (400, gasolina — próprio) + 15 kits orig+lote1 (4.034,32) + chips (40) + 6 kits lote2 (1.149,60) + 6 kits lote3 (1.340,00) + 5 kits lote4 (1.144,00)
   // Custo de instalação: R$50 (gasolina) quando feito pelo Eraldo; R$200 quando paga instalador
   // Propaganda é despesa operacional (DRE), não ativo — padrão contábil (CPC/IFRS)
-  // Quando instalar os 8 em estoque: +R$50 cada (próprio) ou +R$200 (instalador)
-  investimentoTotal: "12257,92",
+  // Quando instalar os 7 em estoque: +R$50 cada (próprio) ou +R$200 (instalador)
+  investimentoTotal: "12307,92",
   // Meta: 1 instalação/semana → 63 clientes em 12 meses → ~R$ 1.200/mês de lucro
   lucroMeta: "1200,00",
   // Valor de mercado estimado conservador — atualizar conforme a empresa cresce
