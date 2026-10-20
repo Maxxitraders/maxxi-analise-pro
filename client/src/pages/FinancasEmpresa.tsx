@@ -42,26 +42,29 @@ interface DadosFinanceiros {
 }
 
 const DEFAULTS: DadosFinanceiros = {
-  // Receita: 27 clientes — 26 pagantes × R$ 53,00 + 1 isento (Edimilson — indicou clientes, Out/26)
-  receitaBruta: "1378,00",
-  // Variáveis por cliente: Asaas mensagem (0,99) + cartão (2,82) + NF (0,99) + imposto 6% (3,18) = R$ 7,98 × 26 pagantes
-  custosVariaveis: "207,48",
-  // Fixos: MaxTracker (90) + Chips M2M (90) + Freela mkt (500) + Facebook Ads R$150/sem×4 (600) + Contador (300) = R$1.580
-  //   MaxTracker: subiu de R$75 para R$90 a partir de Out/2026 (2ª alta)
-  //   Chips M2M: subiu de R$81 para R$90 a partir de Out/2026 (2ª alta)
+  // Receita: 29 clientes — 28 pagantes × R$ 53,00 + 1 isento (Edimilson)
+  //   Clientes 28 e 29 adicionados em Out/26, pagam a partir de Nov/26
+  receitaBruta: "1484,00",
+  // Variáveis por cliente: Asaas mensagem (0,99) + cartão (2,82) + NF (0,99) + imposto 6% (3,18) = R$ 7,98 × 28 pagantes
+  custosVariaveis: "223,44",
+  // Fixos: MaxTracker (90) + Chips M2M (90) + Facebook Ads R$150/sem×4 (600) + Contador (300) = R$1.080
+  //   Freela mkt encerrado em Out/26 (contrato até 24/10/2026)
   //   Parcelas hardware — 9 financiamentos:
-  //   A: 10×R$160,12 — 7ª/10 em Out/26 — term. Jan/2027
-  //   B: 10×R$51,27  — 7ª/10 em Out/26 — term. Jan/2027
-  //   C: 10×R$31,29  — 7ª/10 em Out/26 — term. Jan/2027
-  //   D: 10×R$22,43  — 7ª/10 em Out/26 — term. Jan/2027
-  //   E: 10×R$77,98  — 5ª/10 em Out/26 — term. Mar/2027
-  //   F:  8×R$124,10 — começa Nov/2026  — term. Jun/2027  (R$0 em Out/26)
-  //   G:  8×R$143,74 — começa Nov/2026  — term. Jun/2027  (R$0 em Out/26)
-  //   H:  8×R$167,50 — 1ª/8  em Out/26 — term. Mai/2027  (lote 3 — comprado 07/10/2026)
-  //   I:  8×R$143,00 — começa Nov/2026  — term. Jun/2027  (lote 4 — comprado 17/10/2026, R$0 em Out/26)
-  //   Out/26: 1.580 + 160,12+51,27+31,29+22,43+77,98+167,50 = 2.090,59
-  //   Nov/26+: +F(124,10)+G(143,74)+I(143,00) = 2.501,43 (com freela) / 2.001,43 (sem freela)
-  custosFixos: "2090,59",   // valor de Outubro (F, G e I começam em Nov/26)
+  //   A: 10×R$160,12 — 8ª/10 em Nov/26 — term. Jan/2027
+  //   B: 10×R$51,27  — 8ª/10 em Nov/26 — term. Jan/2027
+  //   C: 10×R$31,29  — 8ª/10 em Nov/26 — term. Jan/2027
+  //   D: 10×R$22,43  — 8ª/10 em Nov/26 — term. Jan/2027
+  //   E: 10×R$77,98  — 6ª/10 em Nov/26 — term. Mar/2027
+  //   F:  8×R$124,10 — 1ª/8  em Nov/26 — term. Jun/2027
+  //   G:  8×R$143,74 — 1ª/8  em Nov/26 — term. Jun/2027
+  //   H:  8×R$167,50 — 2ª/8  em Nov/26 — term. Mai/2027
+  //   I:  8×R$143,00 — 1ª/8  em Nov/26 — term. Jun/2027  (lote 4)
+  //   Nov/26: 1.080 + 160,12+51,27+31,29+22,43+77,98+124,10+143,74+167,50+143,00 = 2.001,43
+  //   Fev/27+ (A+B+C+D quitam): -265,11 → R$1.736,32
+  //   Abr/27+ (E quita): -77,98 → R$1.658,34
+  //   Jun/27+ (H quita): -167,50 → R$1.490,84
+  //   Jul/27+ (F+G+I quitam): -410,84 → R$1.080,00
+  custosFixos: "2001,43",
   // PL: 35 kits total (29 instalados + 6 em estoque) — lotes financiados ativo=dívida, PL +R$0
   //     8 instalações próprias (Eraldo) × R$50 = R$400 contribuição de capital → PL = R$412,05
   patrimonioLiquido: "412,05",
