@@ -41,6 +41,33 @@ Isso retorna `{ "instance": { "instanceName": "Maxxi", "state": "open" } }` em c
 
 ---
 
+## Atendimento Humano — Pausar e Reativar a IA (implementado 17/11/2026)
+
+### Comportamento
+
+| Ação | Resultado |
+|---|---|
+| Eraldo responde qualquer mensagem de um cliente manualmente | Cláudia para de responder àquele contato automaticamente |
+| Eraldo envia `#reativar` para o contato | Aguarda 1 minuto, depois Cláudia volta a responder |
+
+### Como funciona internamente
+
+1. O Evolution API sinaliza mensagens enviadas pelo próprio número (`fromMe: true`) → campo `message.event = "outcoming"`
+2. O nó **Switch6** detecta e separa mensagens `outcoming` das `incoming`
+3. O nó **Palavra para despausar** verifica o conteúdo:
+   - Conteúdo == `#reativar` → **Espera para reativar a IA** (1 minuto) → **Reativar IA** (seta `atendimento_ia = "reativada"`)
+   - Qualquer outra mensagem → **Pausar IA** (seta `atendimento_ia = "pause"`)
+4. O nó **Rota Atendimento** checa `atendimento_ia` em cada mensagem recebida:
+   - Valor != `"pause"` → fluxo normal da Cláudia
+   - Valor == `"pause"` → fluxo ignorado (IA pausada)
+
+### Correções aplicadas
+
+- **Bug 1 (conexões invertidas):** As saídas do nó `Palavra para despausar` estavam trocadas — `#reativar` levava ao `Pausar IA` e qualquer outra mensagem levava ao `Espera para reativar a IA`. Corrigido (snapshot `mws_7vG1tQ2T5xLK`).
+- **Bug 2 (condição errada no Pausar IA):** O `fieldValue` usava expressão condicional que só pausava ao enviar `#assumi`; alterado para valor estático `"pause"` — qualquer mensagem manual agora pausa (snapshot `mws_cZkViTzW4Dyr`).
+
+---
+
 ## Observações
 
 - Mensagens do tipo `templateMessage` (ex: cliques em anúncios do Facebook) são **descartadas** pelo `Switch1` — a Cláudia não responde. Isso é comportamento esperado; o cliente precisa mandar uma mensagem de texto depois.
